@@ -1,0 +1,128 @@
+:root {
+	/* ---- Palette ----
+	   Ground: deep technical slate, not pure black — lets profiles and maps glow.
+	   Accent: maillot-jaune yellow, reserved almost exclusively for the live/today state.
+	   Terrain ramp: used for the profile gradient and climb categories. */
+	--ink: #0d1117;
+	--ink-2: #151c26;
+	--ink-3: #1c2533;
+	--surface: #11171f;
+	--line: #232d3b;
+	--line-2: #2e3a4b;
+
+	--text: #e8edf4;
+	--text-2: #9fb0c3;
+	--text-3: #61748a;
+
+	--jaune: #ffd400;        /* maillot-jaune surface: live/today dots, jump button */
+	--jaune-ink: #1a1500;    /* readable ink on a jaune surface */
+	--jaune-text: #ffd400;   /* maillot-jaune as TEXT — overridden darker in light mode */
+
+	/* Body glow wash (radial highlight behind the page). */
+	--glow: #16202c;
+
+	/* Stage typology colours — distinct hues, legible on dark. */
+	--t-ttt: #8b9bb4;
+	--t-itt: #b48bd4;
+	--t-flat: #4ec9a8;
+	--t-hills: #f0a64e;
+	--t-mountains: #ef5c6e;
+
+	/* Terrain gradient stops (low → high). */
+	--terr-lo: #1f6f5c;
+	--terr-mid: #c79a3a;
+	--terr-hi: #d65a47;
+
+	--radius: 14px;
+	--radius-sm: 9px;
+	--maxw: 1080px;
+
+	--ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+	--font-display: 'Archivo', 'Arial Narrow', sans-serif;
+	--font-body: 'Inter', system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* ---- Light theme ----
+   Dark is the default identity; light is opt-in (see app.html pre-paint script).
+   Only the palette flips — every component reads these same tokens, so nothing
+   else changes. Accent + terrain hues are re-tuned for legibility on white:
+   - --jaune stays a vivid gold *surface*, but --jaune-text darkens to a deep
+     gold that hits WCAG AA as small text on light.
+   - typology + terrain stops deepen so they read on white and so the terrain
+     ramp doubles as the (AA) gradient-readout text colour. */
+:root[data-theme='light'] {
+	--ink: #eceff4;
+	--ink-2: #e1e6ee;
+	--ink-3: #d5dce7;
+	--surface: #ffffff;
+	--line: #d7dde7;
+	--line-2: #c1cad6;
+
+	--text: #14202c;
+	--text-2: #475263;
+	--text-3: #5c697a;
+
+	--jaune: #f4b400;        /* vivid gold surface — still reads on white */
+	--jaune-ink: #2a2100;
+	--jaune-text: #8a6200;   /* deep gold — AA as small text on white/surface */
+
+	--glow: #dde6f1;
+
+	--t-ttt: #56657f;
+	--t-itt: #7e51ab;
+	--t-flat: #138a64;
+	--t-hills: #a8650f;
+	--t-mountains: #cb3247;
+
+	--terr-lo: #1d7a55;
+	--terr-mid: #966500;
+	--terr-hi: #b23a28;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+	margin: 0;
+	padding: 0;
+	background: var(--ink);
+	color: var(--text);
+	font-family: var(--font-body);
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizeLegibility;
+}
+
+body {
+	background:
+		radial-gradient(1200px 600px at 70% -10%, var(--glow) 0%, transparent 60%),
+		var(--ink);
+	min-height: 100vh;
+}
+
+a { color: inherit; text-decoration: none; }
+
+h1, h2, h3 {
+	font-family: var(--font-display);
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	line-height: 1.02;
+	margin: 0;
+}
+
+.mono { font-family: var(--font-mono); }
+
+::selection { background: var(--jaune); color: var(--jaune-ink); }
+
+:focus-visible {
+	outline: 2px solid var(--jaune);
+	outline-offset: 2px;
+	border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after {
+		animation-duration: 0.001ms !important;
+		transition-duration: 0.001ms !important;
+	}
+}

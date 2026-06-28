@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!-- Resolve theme before first paint: stored choice wins, else OS preference.
+		     Dark is the default identity, so any failure falls back to dark. -->
+		<script>
+			(function () {
+				try {
+					var s = localStorage.getItem('tdf-theme');
+					var t =
+						s === 'light' || s === 'dark'
+							? s
+							: matchMedia('(prefers-color-scheme: light)').matches
+								? 'light'
+								: 'dark';
+					document.documentElement.dataset.theme = t;
+				} catch (e) {
+					document.documentElement.dataset.theme = 'dark';
+				}
+			})();
+		</script>
+		<link rel="icon" href="/favicon.svg" />
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap"
+			rel="stylesheet"
+		/>
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>

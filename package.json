@@ -1,0 +1,35 @@
+{
+  "name": "tdf-dashboard",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "profiles": "node scripts/build-profiles.ts",
+    "prebuild": "node scripts/build-profiles.ts",
+    "build": "vite build",
+    "preview": "vite preview",
+    "prepare": "svelte-kit sync || echo ''",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "validate-climbs": "node scripts/validate-climbs.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/kit": "^2.63.0",
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "playwright": "^1.61.1",
+    "svelte": "^5.56.1",
+    "svelte-check": "^4.6.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16",
+    "vitest": "^2.1.9"
+  },
+  "dependencies": {
+    "maplibre-gl": "^5.24.0"
+  }
+}

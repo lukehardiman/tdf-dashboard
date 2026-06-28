@@ -1,0 +1,38 @@
+node_modules
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+!.env.test
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Raw GPX tracks — BUILD-TIME INPUT ONLY, never served. Kept out of the repo
+# (hard to source / private rides) and outside static/ so adapter-static doesn't
+# publish them. The derived profile JSON (src/lib/data/profiles/*.json) IS committed,
+# so the site builds without the GPX present. source-manifest.json is kept for traceability.
+/gpx-src/*.gpx
+!/gpx-src/source-manifest.json
+gpx-src/
+node_modules/
+build/
+.env
+scratchpad/
+test-results/
+scratchpad/
+test-results/
