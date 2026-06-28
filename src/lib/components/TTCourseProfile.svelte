@@ -136,6 +136,7 @@
 <svg
 	bind:this={svgEl}
 	viewBox="0 0 {width} {height}"
+	style="aspect-ratio: {width} / {height};"
 	class="tt"
 	role="img"
 	aria-label="Time-trial course for stage {stageN}: elevation, demand-type sectors and corners"

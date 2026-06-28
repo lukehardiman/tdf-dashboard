@@ -166,6 +166,11 @@
 
 	.profile-pane {
 		padding: 14px 12px 12px;
+		/* Bound the profile to its own panel at the TOP edge so nothing (terrain spikes, climb
+		   annotations) can bleed up onto the flush map above — the two panes share a seam with no gap
+		   to absorb an overflow. Clipping ONLY the top: the other three sides extend freely (−100%),
+		   so labels near the profile's left/right/internal edges are NOT re-clipped. */
+		clip-path: inset(0 -100% -100% -100%);
 	}
 	/* Leave room so the floating ROUTE/PROFILE pill never overlaps the start of the line. */
 	.profile-pane :global(svg.profile) {

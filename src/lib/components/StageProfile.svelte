@@ -140,6 +140,7 @@
 <svg
 	bind:this={svgEl}
 	viewBox="0 0 {width} {height}"
+	style="aspect-ratio: {width} / {height};"
 	class="profile"
 	class:interactive
 	role="img"
@@ -238,6 +239,10 @@
 		display: block;
 		width: 100%;
 		height: auto;
+		/* aspect-ratio (inline) gives Safari a real intrinsic height for height:auto — without it
+		   Safari can mis-size a viewBox-only SVG and, with overflow:visible, paint the terrain/
+		   markers outside the box (up into the map above). Annotations still overflow freely WITHIN
+		   the profile; the profile-pane clips the top edge against the map. */
 		overflow: visible;
 	}
 	.interactive {

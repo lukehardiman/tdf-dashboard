@@ -3,6 +3,10 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!-- Pre-launch: block all indexing, following and archiving across every crawler. Mirrors
+		     robots.txt; remove both when the site is ready to be discovered. -->
+		<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
+		<meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
 		<!-- Resolve theme before first paint: stored choice wins, else OS preference.
 		     Dark is the default identity, so any failure falls back to dark. -->
 		<script>
