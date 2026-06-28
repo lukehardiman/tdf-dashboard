@@ -130,6 +130,21 @@ function downsamplePreview(series: [number, number][]): [number, number][] {
 	return out;
 }
 
+// CRITICAL: never clobber the committed profile data when the GPX source is absent. gpx-src/ is
+// a LOCAL build-time input (gitignored), so on a CI/Vercel build there are no .gpx files — and the
+// generated profiles/*.json + previews.json + scale.json ARE the committed deploy artifact. If we
+// wrote here with written===0 we'd overwrite real data with an empty previews bundle and a garbage
+// scale (Infinity → null), which makes every profile synthesise and overflow its viewBox. So when
+// nothing was built, leave the committed files untouched and exit cleanly. Regenerate locally with
+// `npm run profiles` whenever the GPX changes, then commit the JSON.
+if (written === 0) {
+	console.warn(
+		`\n⚠ No GPX found in ${gpxDir} — keeping the committed profiles/*.json, previews.json and ` +
+			`scale.json as-is. (Expected on deploy builds; gpx-src/ is a local-only build input.)`
+	);
+	process.exit(0);
+}
+
 writeFileSync(join(outDir, 'previews.json'), JSON.stringify(previews) + '\n');
 writeFileSync(join(outDir, 'summaries.json'), JSON.stringify(summaries) + '\n');
 // Shared cross-stage elevation scale (global low → high). Consumed by eleProjection so
