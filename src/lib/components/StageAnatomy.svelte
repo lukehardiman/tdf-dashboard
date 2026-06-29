@@ -59,6 +59,13 @@
 			climbs: (climbs ?? []).map((c) => ({ category: c.category, summitKm: c.summitKm })),
 			series
 		});
+		// A stage that FINISHES atop a summit but whose decisive categorised climb crests earlier
+		// (archetype C — climb + run-in) gets a COMPOUND keystat capturing both facts: the line is at
+		// a summit AND selection happens before it. A plain "Summit" would leave a viewer wondering why
+		// the decisive-zone hero frames a climb km from the line. Systematic across stages 10/14/20.
+		// (A punchy summit like stage 3, where the kick IS the line, has no split — keeps its archetype
+		// label. A non-summit climb + run-in like stage 2 stays "Climb + Run-In".)
+		if (stage.summitFinish && arch === 'climb-runin') return 'Summit · decided earlier';
 		return ROAD_FINISH[arch];
 	});
 </script>
@@ -70,7 +77,7 @@
 		<div><dt>Distance</dt><dd>{stage.distanceKm}<span>km</span></dd></div>
 		<div><dt>Elevation</dt><dd>{stage.elevationGainM.toLocaleString()}<span>m ↑</span></dd></div>
 		<div><dt>Categorised Climbs</dt><dd>{climbCount || '—'}</dd></div>
-		<div><dt>Finish</dt><dd class="sm">{finishLabel}</dd></div>
+		<div><dt>Finish</dt><dd class="sm">{#if finishLabel.includes(' · ')}{finishLabel.split(' · ')[0]}<span class="qual">{finishLabel.split(' · ')[1]}</span>{:else}{finishLabel}{/if}</dd></div>
 	</dl>
 
 	<div class="pane map-pane">
@@ -169,6 +176,17 @@
 	}
 	.stat-strip dd.sm {
 		font-size: 0.95rem;
+	}
+	/* Compound finish keystat (e.g. "Summit · decided earlier"): the main word stays the headline,
+	   the qualifier drops to a small muted second line so the box reads cleanly and never overflows
+	   — same role as a unit, but a phrase, so block not inline. */
+	.stat-strip dd .qual {
+		display: block;
+		margin: 3px 0 0;
+		font-size: 0.62rem;
+		font-weight: 400;
+		letter-spacing: 0.02em;
+		color: var(--text-3);
 	}
 
 	.pane {
