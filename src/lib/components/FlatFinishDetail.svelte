@@ -25,7 +25,10 @@
 		height?: number;
 	} = $props();
 
-	const pad = { top: 30, right: 18, bottom: 40, left: 48 };
+	// Symmetric L/R gutters: unlike the banded-climb view, the flat finish draws NO left altitude
+	// axis, so it needs no extra left padding — just enough either side for the end tick labels
+	// ("5km" / "0km") not to clip. Centres the profile in its panel.
+	const pad = { top: 30, right: 18, bottom: 40, left: 18 };
 	const innerW = $derived(width - pad.left - pad.right);
 	const innerH = $derived(height - pad.top - pad.bottom);
 	const baseY = $derived(pad.top + innerH);
