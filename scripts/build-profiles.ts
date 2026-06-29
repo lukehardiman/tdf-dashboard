@@ -9,8 +9,29 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { buildStageProfile, type GeoElePoint, type Waypoint } from '../src/lib/render/gpx.ts';
+import {
+	buildStageProfile,
+	parseGpxTrack,
+	cumulativeSeries,
+	type GeoElePoint,
+	type Waypoint
+} from '../src/lib/render/gpx.ts';
 import { tdf2026 } from '../src/lib/data/tdf2026.ts';
+
+// Dense, road-accurate final-km track for the zoomed finish map. DIAGNOSIS (stages 12/13, raw
+// vs downsampled overlaid on OSM): the raw GPX hugs the road at ~11 m spacing — it does NOT chord
+// across corners — while the public `track` is decimated to ~540 m and DOES chord badly. So the
+// finish map needs no map-matching service; it just needs the raw points for the final stretch.
+// We keep them at full resolution (corners are the whole point) for the final few km only.
+const FINISH_TRACK_KM = 3;
+
+function finishTrackFor(xml: string, km: number): [number, number][] {
+	const cum = cumulativeSeries(parseGpxTrack(xml));
+	if (cum.length < 2) return [];
+	const endKm = cum[cum.length - 1].km;
+	const fromKm = Math.max(0, endKm - km);
+	return cum.filter((p) => p.km >= fromKm).map((p) => [round(p.lon, 5), round(p.lat, 5)]);
+}
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 // Raw GPX is build-time input only — outside static/, never published.
@@ -54,7 +75,8 @@ for (const stage of tdf2026.stages) {
 		continue;
 	}
 
-	const built = buildStageProfile(readFileSync(gpxPath, 'utf8'));
+	const gpxText = readFileSync(gpxPath, 'utf8');
+	const built = buildStageProfile(gpxText);
 
 	const series: [number, number][] = built.series.map((p: GeoElePoint) => [round(p.km, 2), round(p.ele, 1)]);
 	const track: [number, number][] = built.series.map((p: GeoElePoint) => [round(p.lon, 5), round(p.lat, 5)]);
@@ -81,6 +103,8 @@ for (const stage of tdf2026.stages) {
 		maxEleM: Math.round(built.maxEleM),
 		series,
 		track,
+		// Dense final-km track (raw GPX) for the zoomed finish map — corners intact, no decimation.
+		finishTrack: finishTrackFor(gpxText, FINISH_TRACK_KM),
 		climbs: built.climbs.map((c) => ({
 			name: c.name,
 			rawName: c.rawName,

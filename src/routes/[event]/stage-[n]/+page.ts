@@ -19,6 +19,7 @@ export const load: PageLoad = async ({ params }) => {
 		stage,
 		series: render?.series ?? null,
 		track: render?.track ?? null,
+		finishTrack: render?.finishTrack ?? null,
 		// GPX-derived climbs are the source of truth; fall back to hand-seeded only if
 		// no GPX profile exists for the stage.
 		climbs: render?.climbs ?? null,

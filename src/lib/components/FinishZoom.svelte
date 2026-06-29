@@ -10,23 +10,27 @@
 	//                   not in a second graphic of the same course.
 	import type { Stage } from '$lib/data/types';
 	import type { ProfileClimb } from '$lib/data/profiles';
-	import type { ElePoint } from '$lib/render/profile';
+	import { elevationAtKm, type ElePoint } from '$lib/render/profile';
 	import type { LngLat } from '$lib/render/curvature';
 	import { classifyStageFinish, type FinishArchetype } from '$lib/render/finish';
 	import ClimbBandingDetail from './ClimbBandingDetail.svelte';
 	import FlatFinishDetail from './FlatFinishDetail.svelte';
+	import FinishMap from './FinishMap.svelte';
 
 	let {
 		stage,
 		series,
 		climbs,
 		track,
+		finishTrack = [],
 		distanceKm
 	}: {
 		stage: Stage;
 		series: ElePoint[];
 		climbs: ProfileClimb[];
 		track: LngLat[];
+		/** Dense final-km track (raw GPX) for the zoomed finish map. */
+		finishTrack?: LngLat[];
 		distanceKm: number;
 	} = $props();
 
@@ -57,6 +61,23 @@
 		flat: 'Decisive zone',
 		tt: 'The course'
 	};
+
+	// Whether to pair a zoomed plan-view map with the profile — only where corners are the decisive,
+	// profile-invisible factor: D (sprint run-in) and C when the run-in DESCENDS (a technical descent
+	// to the line). A clean summit (B) or uphill kick (E) is a gradient story the profile already
+	// tells, and a TT (A) has its own course map — so no map there.
+	const FINISH_DESCENT_DROP_M = 30; // net drop over the run-in to count C as a "technical descent"
+	const descentRunIn = $derived(
+		archetype === 'climb-runin' &&
+			finalClimb != null &&
+			series.length > 0 &&
+			elevationAtKm(series, series[series.length - 1].km) <
+				(finalClimb.summitElevation ?? elevationAtKm(series, finalClimb.summitKm)) -
+					FINISH_DESCENT_DROP_M
+	);
+	const showFinishMap = $derived(
+		finishTrack.length >= 2 && (archetype === 'flat' || descentRunIn)
+	);
 
 	// Frame geometry per archetype.
 	const frame = $derived.by(() => {
@@ -95,6 +116,17 @@
 			/>
 		{:else if archetype === 'flat'}
 			<FlatFinishDetail {series} {track} {distanceKm} finishName={stage.finish.name} />
+		{/if}
+
+		<!-- Plan-view of the final km: shows the corners the elevation profile can't. Only where
+		     corners decide it — sprint run-ins (D) and technical descents to the line (C). -->
+		{#if showFinishMap}
+			<FinishMap
+				track={finishTrack}
+				colorVar="--t-{stage.type}"
+				finishName={stage.finish.name}
+				label={stage.finish.name}
+			/>
 		{/if}
 	</section>
 {/if}

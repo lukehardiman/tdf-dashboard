@@ -8,7 +8,7 @@
 	import { formatDateLong } from '$lib/state';
 
 	let { data } = $props();
-	const { event, stage, prev, next, series, track } = $derived(data);
+	const { event, stage, prev, next, series, track, finishTrack } = $derived(data);
 
 	const catLabel = (c: number | 'hc') => (c === 'hc' ? 'HC' : `Cat ${c}`);
 
@@ -165,6 +165,7 @@
 			{series}
 			climbs={data.climbs ?? []}
 			track={track ?? []}
+			finishTrack={finishTrack ?? []}
 			distanceKm={series[series.length - 1].km}
 		/>
 	{/if}

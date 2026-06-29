@@ -51,6 +51,8 @@ export interface StageProfileFile {
 	series: [number, number][];
 	/** [lon, lat] pairs — route track for the map (GeoJSON coordinate order). */
 	track: [number, number][];
+	/** [lon, lat] pairs — DENSE final-km track (raw GPX, corners intact) for the zoomed finish map. */
+	finishTrack?: [number, number][];
 	/** Categorised climbs from the roadbook waypoints. */
 	climbs: ProfileClimb[];
 	/** Uncategorised KOM tops — flagged for review, never auto-categorised. */
@@ -98,6 +100,8 @@ export interface StageRender {
 	series: ElePoint[];
 	/** [lon, lat] route track for the map. */
 	track: LngLat[];
+	/** Dense final-km track for the zoomed finish map (corners intact); empty if unavailable. */
+	finishTrack: LngLat[];
 	/** Categorised climbs derived from the GPX roadbook waypoints. */
 	climbs: ProfileClimb[];
 	/** Uncategorised KOM tops — count only, flagged for review (never auto-categorised). */
@@ -111,6 +115,7 @@ export async function loadStageRender(n: number): Promise<StageRender | null> {
 	return {
 		series: toSeries(profile.series),
 		track: profile.track,
+		finishTrack: profile.finishTrack ?? [],
 		climbs: profile.climbs,
 		uncategorisedKomCount: profile.uncategorisedKoms.length
 	};
