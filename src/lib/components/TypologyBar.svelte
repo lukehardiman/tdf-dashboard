@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { browser } from '$app/environment';
 	import type { EventMeta } from '$lib/data/types';
 	import { theme } from '$lib/theme.svelte';
 
@@ -22,31 +21,9 @@
 		/** Primary navigation pinned in the masthead, right of the wordmark (e.g. the stage selector). */
 		nav?: Snippet;
 	} = $props();
-
-	// Condense on scroll: full height at the top, slim bar once scrolled. The masthead is sticky so
-	// stage nav is always reachable, but a tall permanent header would claw back the map+profile
-	// co-visibility we fought for — so it shrinks to just logo + nav as soon as the page moves.
-	let condensed = $state(false);
-	$effect(() => {
-		if (!browser) return;
-		let raf = 0;
-		const update = () => {
-			raf = 0;
-			condensed = window.scrollY > 12;
-		};
-		const onScroll = () => {
-			if (!raf) raf = requestAnimationFrame(update);
-		};
-		update();
-		window.addEventListener('scroll', onScroll, { passive: true });
-		return () => {
-			window.removeEventListener('scroll', onScroll);
-			if (raf) cancelAnimationFrame(raf);
-		};
-	});
 </script>
 
-<header class="bar" class:condensed>
+<header class="bar">
 	<div class="inner">
 		<div class="brand">
 			<!-- Intervals mark → out to the product (brand + funnel). Self-contained crimson
@@ -110,27 +87,23 @@
 </header>
 
 <style>
+	/* Sticky masthead at a CONSTANT height — mirrors the intervals.icu site header (64px row,
+	   solid background, single hairline border-bottom, no condense-on-scroll). */
 	.bar {
 		position: sticky;
 		top: 0;
-		z-index: 50;
-		background: color-mix(in srgb, var(--ink) 82%, transparent);
-		backdrop-filter: blur(12px);
+		z-index: 100;
+		background: var(--ink);
 		border-bottom: 1px solid var(--line);
 	}
 	.inner {
 		max-width: var(--maxw);
 		margin: 0 auto;
-		padding: 11px 20px;
+		padding: 0 20px;
+		height: 64px;
 		display: flex;
 		align-items: center;
 		gap: 20px;
-		transition: padding 0.2s var(--ease);
-	}
-	/* Condensed (scrolled): slim the bar to just logo + nav so it reclaims minimal vertical space. */
-	.condensed .inner {
-		padding-top: 5px;
-		padding-bottom: 5px;
 	}
 	/* Lockup: Intervals mark + a mono "Dashboard" eyebrow stacked over the display-font wordmark. */
 	.brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
@@ -151,14 +124,6 @@
 		font-size: 0.58rem;
 		letter-spacing: 0.16em;
 		color: var(--text-3);
-		max-height: 1.4em;
-		overflow: hidden;
-		transition: max-height 0.2s var(--ease), opacity 0.2s var(--ease);
-	}
-	/* On scroll the eyebrow collapses away, leaving the wordmark + nav as the slim bar. */
-	.condensed .brand-eyebrow {
-		max-height: 0;
-		opacity: 0;
 	}
 	.brand-name {
 		font-family: var(--font-display);
@@ -168,10 +133,6 @@
 		line-height: 1;
 		letter-spacing: -0.01em;
 		color: var(--text);
-		transition: font-size 0.2s var(--ease);
-	}
-	.condensed .brand-name {
-		font-size: 1.05rem;
 	}
 
 	/* The stage selector: primary navigation, so a touch larger/more prominent than the old
@@ -228,7 +189,7 @@
 	@media (max-width: 560px) {
 		.inner { gap: 10px; padding-left: 14px; padding-right: 14px; }
 		.brand { gap: 7px; }
-		.brand-eyebrow { max-height: 0; opacity: 0; }
+		.brand-eyebrow { display: none; }
 		.brand-name { font-size: 1rem; }
 		.masthead-nav { font-size: 0.82rem; }
 	}
@@ -240,13 +201,5 @@
 		/* width:100% pins the text box to the (shrunk) wordmark width so text-overflow renders
 		   the ellipsis on the text itself, rather than the parent hard-clipping mid-word. */
 		.brand-name { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.inner,
-		.brand-eyebrow,
-		.brand-name {
-			transition: none;
-		}
 	}
 </style>
