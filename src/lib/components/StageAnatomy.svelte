@@ -41,7 +41,7 @@
 	// reads "Flat" — consistent with what's drawn directly beneath it.
 	const ROAD_FINISH: Record<FinishArchetype, string> = {
 		summit: 'Summit',
-		'climb-runin': 'Climb + run-in',
+		'climb-runin': 'Climb + Run-In',
 		punchy: 'Uphill',
 		flat: 'Flat',
 		tt: 'Flat' // unreachable for road stages; archetype short-circuits to tt only for itt/ttt
