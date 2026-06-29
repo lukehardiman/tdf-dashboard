@@ -3,6 +3,7 @@
 	import type { ElePoint } from '$lib/render/profile';
 	import type { LngLat } from '$lib/render/route';
 	import type { ClimbMarkerInput } from '$lib/render/profile';
+	import { classifyStageFinish, type FinishArchetype } from '$lib/render/finish';
 	import RouteMap from './RouteMap.svelte';
 	import StageProfile from './StageProfile.svelte';
 	import TTCourseProfile from './TTCourseProfile.svelte';
@@ -31,6 +32,28 @@
 	// (local exaggeration + scrub + demand-type sectors + corners) in place of the shared-scale
 	// profile — and no separate decisive-zone graphic, which would just show the same course twice.
 	const isTT = $derived(stage.type === 'itt' || stage.type === 'ttt');
+
+	// The "Finish" vital is derived from the SAME geometry classifier that drives the Decisive Zone,
+	// not the crude summitFinish boolean — so a flat city sprint reads "Flat", a punchy kick reads
+	// "Uphill", a TT reads "Time trial", instead of everything collapsing to "Summit"/"Valley"
+	// ("Valley" was nonsense for sprints and time trials alike).
+	const FINISH_LABEL: Record<FinishArchetype, string> = {
+		summit: 'Summit',
+		'climb-runin': 'Climb + run-in',
+		punchy: 'Uphill',
+		flat: 'Flat',
+		tt: 'Time trial'
+	};
+	const finishLabel = $derived.by(() => {
+		if (!series || !series.length) return stage.summitFinish ? 'Summit' : 'Flat';
+		const arch = classifyStageFinish({
+			type: stage.type,
+			distanceKm: series[series.length - 1].km,
+			climbs: (climbs ?? []).map((c) => ({ category: c.category, summitKm: c.summitKm })),
+			series
+		});
+		return FINISH_LABEL[arch];
+	});
 </script>
 
 <!-- The anatomy of a stage as one tool: vital stats, then the two spatial views (map above
@@ -40,7 +63,7 @@
 		<div><dt>Distance</dt><dd>{stage.distanceKm}<span>km</span></dd></div>
 		<div><dt>Elevation</dt><dd>{stage.elevationGainM.toLocaleString()}<span>m ↑</span></dd></div>
 		<div><dt>Climbs</dt><dd>{climbCount || '—'}</dd></div>
-		<div><dt>Finish</dt><dd class="sm">{stage.summitFinish ? 'Summit' : 'Valley'}</dd></div>
+		<div><dt>Finish</dt><dd class="sm">{finishLabel}</dd></div>
 	</dl>
 
 	<div class="pane map-pane">
