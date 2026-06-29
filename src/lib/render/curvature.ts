@@ -117,13 +117,25 @@ export function detectCorners(track: LngLat[], opts: CornerOptions = {}): Corner
 		windowed[i] = sum;
 	}
 
-	// Pick local maxima of |windowed| above threshold, spaced out.
+	// Pick local maxima of |windowed| above threshold, spaced out. windowed[i] sums the turn over the
+	// window STARTING at i, so its peak sits at the bend's upstream entry — reporting pkm[i] marks the
+	// corner EARLY. Instead report the APEX: the turn-weighted centroid of the per-step turn across
+	// the window (the tightest point — what a rider means by "the corner").
 	const candidates: Corner[] = [];
 	for (let i = 1; i < windowed.length - 1; i++) {
 		const mag = Math.abs(windowed[i]);
 		if (mag < minTurnDeg) continue;
 		if (mag < Math.abs(windowed[i - 1]) || mag < Math.abs(windowed[i + 1])) continue;
-		candidates.push({ km: pkm[i], turnDeg: mag, dir: windowed[i] >= 0 ? 'R' : 'L', lngLat: pts[i] });
+		let wsum = 0;
+		let ksum = 0;
+		for (let k = i; k < Math.min(headings.length, i + win); k++) {
+			const a = Math.abs(acc[k]);
+			wsum += a;
+			ksum += a * pkm[k];
+		}
+		const apexKm = wsum > 0 ? ksum / wsum : pkm[i];
+		const ai = Math.max(0, Math.min(pts.length - 1, Math.round(apexKm / stepKm)));
+		candidates.push({ km: apexKm, turnDeg: mag, dir: windowed[i] >= 0 ? 'R' : 'L', lngLat: pts[ai] });
 	}
 	candidates.sort((a, b) => b.turnDeg - a.turnDeg);
 	const kept: Corner[] = [];

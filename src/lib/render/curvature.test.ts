@@ -35,8 +35,9 @@ describe('detectCorners', () => {
 		expect(corners).toHaveLength(1);
 		expect(corners[0].turnDeg).toBeGreaterThan(60);
 		expect(corners[0].dir).toBe('L'); // east → north is a left turn
-		expect(corners[0].km).toBeGreaterThan(0.7);
-		expect(corners[0].km).toBeLessThan(1.3);
+		// Reported at the APEX (the elbow at ~1.0 km), not the bend's upstream entry — so the marker
+		// lands ON the corner, not early. (Window-start reporting would put this at ~0.7–0.8 km.)
+		expect(corners[0].km).toBeCloseTo(1.0, 1);
 	});
 
 	it('finds nothing on a straight line', () => {

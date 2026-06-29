@@ -3,7 +3,7 @@
 	// would be noise. Instead it shows the TECHNICAL run-in: the flamme rouge (1 km to go), sharp
 	// corners derived from the track's curvature, and the closing drag/false-flat to the line.
 	// Purely descriptive geometry — where the road bends and tilts, never a predicted outcome.
-	import { detectCorners, type LngLat } from '$lib/render/curvature';
+	import { detectCorners, cumulativeKm, type LngLat } from '$lib/render/curvature';
 	import { finishRampGradient } from '$lib/render/finish';
 	import { elevationAtKm, gradientAtKm, type ElePoint } from '$lib/render/profile';
 
@@ -75,12 +75,26 @@
 			: ''
 	);
 
-	// Corners in the run-in (descriptive). km returned is from the sub-track start → offset to stage km.
-	const corners = $derived(
-		detectCorners(subTrack, { minTurnDeg: 55, minSpacingKm: 0.4 })
+	// Corners in the run-in (descriptive). Detect on the DENSE finishTrack (raw GPX, corners intact)
+	// — the SAME source the finish map draws — so the on-profile markers match the map and aren't
+	// chorded away or mislocated by the coarse shared track. Position by km-to-go: the profile's
+	// x-axis IS km-to-go, so a corner's distance from the line maps straight to its x. Falls back to
+	// the coarse track only if no dense finishTrack was supplied.
+	const corners = $derived.by(() => {
+		const dense = finishTrack.length >= 3;
+		const src = dense ? finishTrack : subTrack;
+		if (src.length < 3) return [];
+		const found = detectCorners(src, { minTurnDeg: 50, minSpacingKm: 0.28 });
+		if (dense) {
+			const ftLen = cumulativeKm(finishTrack)[finishTrack.length - 1];
+			return found
+				.map((c) => ({ ...c, absKm: distanceKm - (ftLen - c.km) }))
+				.filter((c) => c.absKm <= distanceKm - 0.12 && c.absKm >= fromKm);
+		}
+		return found
 			.map((c) => ({ ...c, absKm: startKm + c.km }))
-			.filter((c) => c.absKm <= distanceKm - 0.15) // ignore the final approach noise
-	);
+			.filter((c) => c.absKm <= distanceKm - 0.15);
+	});
 
 	const flammeKm = $derived(distanceKm - 1);
 	const showFlamme = $derived(flammeKm > fromKm);
