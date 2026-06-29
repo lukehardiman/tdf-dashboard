@@ -85,17 +85,16 @@
 	{@html `<script type="application/ld+json">${jsonLd}<\/script>`}
 </svelte:head>
 
-<TypologyBar {event} />
+<TypologyBar {event}>
+	{#snippet nav()}
+		<StageSelector {event} current={stage.n} />
+	{/snippet}
+</TypologyBar>
 
 <main>
-	<nav class="crumb mono" aria-label="Breadcrumb">
-		<a href="/{event.slug}/">{event.name}</a>
-		<span aria-hidden="true">/</span>
-		<StageSelector {event} current={stage.n} />
-	</nav>
-
-	<!-- The typology key, moved out of the masthead: here it sits beside the breadcrumb to explain
-	     the swatch in the stage selector and the type badge on the header below. -->
+	<!-- The typology key sits in a band below the (sticky) masthead — it's reference, not navigation,
+	     so it's fine to scroll away. It explains the swatch in the stage selector above and the type
+	     badge on the header below. -->
 	<div class="key-row">
 		<TypologyKey />
 	</div>
@@ -222,10 +221,7 @@
 <style>
 	main { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
 
-	.crumb { padding: 20px 0 0; font-size: 0.76rem; color: var(--text-3); display: flex; align-items: center; gap: 9px; }
-	.crumb a { color: var(--text-2); }
-	.crumb a:hover { color: var(--jaune-text); }
-	.key-row { padding: 12px 0 0; }
+	.key-row { padding: 18px 0 0; }
 
 	.head { padding: 28px 0 32px; position: relative; }
 	.head-top { display: flex; align-items: center; gap: 18px; }
