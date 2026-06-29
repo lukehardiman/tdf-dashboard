@@ -84,7 +84,7 @@
 			</div>
 			<dl class="facts mono">
 				<div><dt>Distance</dt><dd>{event.totalDistanceKm.toLocaleString()}<span>km</span></dd></div>
-				<div><dt>Elevation</dt><dd>{event.totalElevationM.toLocaleString()}<span>m ↑</span></dd></div>
+				<div><dt>Total Ascent</dt><dd>{event.totalElevationM.toLocaleString()}<span>m ↑</span></dd></div>
 				{#if event.teamCount}<div><dt>Teams</dt><dd>{event.teamCount}</dd></div>{/if}
 				{#if event.riderCount}<div><dt>Riders</dt><dd>{event.riderCount}</dd></div>{/if}
 			</dl>
