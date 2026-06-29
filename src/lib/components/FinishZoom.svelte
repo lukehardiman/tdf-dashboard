@@ -80,8 +80,8 @@
 	);
 
 	// Profile scrub → finish map. The detail profile reports km-to-go under the cursor; the map
-	// places its tracking dot that far back from the line (it covers the final 3 km, so a cursor in
-	// the 5→3 km part of the profile is off the map and the dot simply clears).
+	// places its tracking dot that far back from the line. The map is sliced to the SAME window as
+	// the profile (below), so the dot tracks 1:1 across the whole profile.
 	let scrubKmToGo = $state<number | null>(null);
 
 	// Frame geometry per archetype.
@@ -101,6 +101,13 @@
 		}
 		return null;
 	});
+
+	// Map window = the profile's window, so the two views show the same distance. Flat finish frames
+	// the final 5 km (FlatFinishDetail's finalKm); the climb-runin frames its climb + run-in.
+	const FLAT_FINAL_KM = 5;
+	const finishMapWindowKm = $derived(
+		archetype === 'flat' ? FLAT_FINAL_KM : frame ? frame.toKm - frame.fromKm : FLAT_FINAL_KM
+	);
 </script>
 
 {#if archetype !== 'tt'}
@@ -139,6 +146,7 @@
 				colorVar="--t-{stage.type}"
 				finishName={stage.finish.name}
 				label={stage.finish.name}
+				windowKm={finishMapWindowKm}
 				{scrubKmToGo}
 			/>
 		{/if}

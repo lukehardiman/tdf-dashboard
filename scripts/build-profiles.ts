@@ -23,7 +23,10 @@ import { tdf2026 } from '../src/lib/data/tdf2026.ts';
 // across corners — while the public `track` is decimated to ~540 m and DOES chord badly. So the
 // finish map needs no map-matching service; it just needs the raw points for the final stretch.
 // We keep them at full resolution (corners are the whole point) for the final few km only.
-const FINISH_TRACK_KM = 3;
+// 5 km so the map can match the decisive-zone PROFILE's window exactly (the flat-finish profile
+// frames the final 5 km; the climb-runin profile frames a shorter climb+run-in) — the map slices
+// this to that window, so the two views show the same distance and the scrub dot tracks 1:1.
+const FINISH_TRACK_KM = 5;
 
 function finishTrackFor(xml: string, km: number): [number, number][] {
 	const cum = cumulativeSeries(parseGpxTrack(xml));

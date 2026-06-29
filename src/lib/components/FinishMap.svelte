@@ -18,6 +18,9 @@
 		colorVar = '--jaune',
 		finishName,
 		label = 'finish',
+		/** Show only the final `windowKm` of the track, to MATCH the paired profile's window so the
+		 *  two views show the same distance (and the scrub dot tracks 1:1). Capped at the track length. */
+		windowKm = Infinity,
 		/** Km-to-go reported by the profile scrub (null = not scrubbing). Places the tracking dot. */
 		scrubKmToGo = null
 	}: {
@@ -26,8 +29,21 @@
 		colorVar?: string;
 		finishName: string;
 		label?: string;
+		windowKm?: number;
 		scrubKmToGo?: number | null;
 	} = $props();
+
+	// The final `windowKm` of the dense track — what the map actually draws (matches the profile).
+	function sliceFinalKm(t: LngLat[], km: number): LngLat[] {
+		if (!isFinite(km) || t.length < 2) return t;
+		let cum = 0;
+		for (let i = t.length - 1; i > 0; i--) {
+			cum += haversineKm(t[i], t[i - 1]);
+			if (cum >= km) return t.slice(i - 1);
+		}
+		return t;
+	}
+	const shown = $derived(sliceFinalKm(track, windowKm));
 
 	// Same keyless, unmetered tile source as the main route map (single point of change there).
 	const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
@@ -41,7 +57,7 @@
 	let scrubMarker: MlMarker | null = null; // moving: tracks the profile scrub
 	let observer: IntersectionObserver | null = null;
 
-	const hasTrack = $derived(track.length >= 2);
+	const hasTrack = $derived(shown.length >= 2);
 
 	function resolveColor(): string {
 		const v =
@@ -98,7 +114,7 @@
 			map = new maplibre.Map({
 				container,
 				style: STYLE_URL,
-				bounds: trackBounds(track),
+				bounds: trackBounds(shown),
 				fitBoundsOptions: { padding: 38 },
 				cooperativeGestures: true,
 				attributionControl: false
@@ -184,16 +200,17 @@
 	}
 
 	$effect(() => {
-		const t = track;
+		const t = shown;
 		if (status !== 'ready') return;
 		renderTrack(t);
 	});
 
 	// Scrub → tracking dot. The profile reports km-to-go; place the dot that far back along the
-	// track. Beyond the mapped window (km-to-go > track length) there's nowhere to show it → hide.
+	// shown track. The map window matches the profile, so km-to-go is in range and the dot tracks
+	// 1:1; if it ever exceeds the shown window there's nowhere to put it → hide.
 	$effect(() => {
 		const k = scrubKmToGo;
-		const t = track;
+		const t = shown;
 		if (status !== 'ready' || !map || !maplibre) return;
 		const coord = k == null ? null : coordAtKmFromEnd(t, k);
 		if (!coord) {
