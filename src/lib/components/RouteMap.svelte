@@ -111,6 +111,9 @@
 				'bottom-right'
 			);
 			map.addControl(new maplibre.NavigationControl({ showCompass: false }), 'top-right');
+			// Distance scale — metric only. Sits bottom-left, themed unobtrusively below so it
+			// reads on tiles in either mode without shouting (overrides the default chunky widget).
+			map.addControl(new maplibre.ScaleControl({ unit: 'metric', maxWidth: 96 }), 'bottom-left');
 
 			map.on('load', () => {
 				if (!map) return;
@@ -289,5 +292,20 @@
 	}
 	:global(.maplibregl-ctrl-attrib) {
 		font-size: 10px;
+	}
+	/* Scale bar: muted to match the theme, no heavy box. A thin ruler line + small label that
+	   sits quietly in the corner over tiles, dark or light — informative, never attention-grabbing. */
+	:global(.maplibregl-ctrl-scale) {
+		font-family: var(--font-mono);
+		font-size: 9px;
+		line-height: 1.3;
+		color: var(--text-2);
+		background: color-mix(in srgb, var(--surface) 72%, transparent);
+		border: 1px solid var(--line);
+		border-top: none;
+		border-radius: 0 0 3px 3px;
+		padding: 1px 5px 2px;
+		box-shadow: none;
+		margin: 0 0 8px 8px;
 	}
 </style>
