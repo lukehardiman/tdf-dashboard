@@ -69,7 +69,7 @@
 	<dl class="stat-strip mono">
 		<div><dt>Distance</dt><dd>{stage.distanceKm}<span>km</span></dd></div>
 		<div><dt>Elevation</dt><dd>{stage.elevationGainM.toLocaleString()}<span>m ↑</span></dd></div>
-		<div><dt>Climbs</dt><dd>{climbCount || '—'}</dd></div>
+		<div><dt>Categorised Climbs</dt><dd>{climbCount || '—'}</dd></div>
 		<div><dt>Finish</dt><dd class="sm">{finishLabel}</dd></div>
 	</dl>
 
