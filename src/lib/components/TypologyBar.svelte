@@ -110,14 +110,20 @@
 	.brand-mark-link { display: inline-flex; align-items: center; }
 	.brand-mark { display: block; width: 26px; height: 26px; }
 	.brand-word {
+		/* The eyebrow is positioned ABOVE the wordmark out of flow (see .brand-eyebrow) so the
+		   wordmark alone defines this block's height. That makes the row's center-alignment line the
+		   stage selector up with the "Tour de France 2026" text, not the eyebrow+wordmark midpoint. */
+		position: relative;
 		display: inline-flex;
-		flex-direction: column;
 		align-items: flex-start;
-		gap: 1px;
 		line-height: 1;
 		white-space: nowrap;
 	}
 	.brand-eyebrow {
+		position: absolute;
+		bottom: 100%;
+		left: 0;
+		margin-bottom: 2px;
 		font-family: var(--font-mono);
 		text-transform: uppercase;
 		font-weight: 600;
