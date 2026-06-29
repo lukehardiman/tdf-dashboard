@@ -35,7 +35,7 @@
 				rel="noopener noreferrer"
 				aria-label="Intervals.icu"
 			>
-				<img src="/intervals-logo-round.svg" alt="Intervals.icu" class="brand-mark" width="26" height="26" />
+				<img src="/intervals-logo-round.svg" alt="Intervals.icu" class="brand-mark" width="32" height="32" />
 			</a>
 			<!-- Wordmark → home within the microsite. Display-font logotype with a mono eyebrow. -->
 			<a class="brand-word" href="/{event.slug}" aria-label="{event.name} dashboard — home">
@@ -95,6 +95,7 @@
 		z-index: 100;
 		background: var(--ink);
 		border-bottom: 1px solid var(--line);
+		--wordmark-optical: 2px;
 	}
 	.inner {
 		max-width: var(--maxw);
@@ -108,7 +109,7 @@
 	/* Lockup: Intervals mark + a mono "Dashboard" eyebrow stacked over the display-font wordmark. */
 	.brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 	.brand-mark-link { display: inline-flex; align-items: center; }
-	.brand-mark { display: block; width: 26px; height: 26px; }
+	.brand-mark { display: block; width: 32px; height: 32px; }
 	.brand-word {
 		/* The eyebrow is positioned ABOVE the wordmark out of flow (see .brand-eyebrow) so the
 		   wordmark alone defines this block's height. That makes the row's center-alignment line the
@@ -118,6 +119,10 @@
 		align-items: flex-start;
 		line-height: 1;
 		white-space: nowrap;
+		/* Optical nudge: this display font's caps sit ~2px high in their line box, so the geometric
+		   center reads slightly above the disc mark. Drop the wordmark (and the selector, by the same
+		   amount) so both optically center on the mark. */
+		transform: translateY(var(--wordmark-optical));
 	}
 	.brand-eyebrow {
 		position: absolute;
@@ -146,6 +151,7 @@
 	.masthead-nav {
 		flex-shrink: 0;
 		font-size: 0.92rem;
+		transform: translateY(var(--wordmark-optical));
 	}
 
 	.actions { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
