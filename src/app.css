@@ -126,3 +126,43 @@ h1, h2, h3 {
 		transition-duration: 0.001ms !important;
 	}
 }
+
+/* Chequered finish-flag map marker — SHARED by the route map and the decisive-zone finish map so
+   the finish reads identically everywhere (MapLibre markers live outside component DOM, so the
+   style is global here rather than scoped per component). A flag is the universal race-finish
+   symbol and a different SHAPE from the red flamme-rouge pill, so the two never clash on the
+   decisive-zone map. Black/white is intentional and theme-independent (a real chequered flag); a
+   white border + dark ring keep it crisp over any basemap, light or dark. The marker is anchored
+   bottom-left (see the call sites), so the pole's base sits exactly on the finish line. */
+.finish-flag {
+	position: relative;
+	width: 19px;
+	height: 22px;
+	pointer-events: none;
+}
+.finish-flag::before {
+	/* pole — dark core with a light halo so it shows on light and dark tiles alike */
+	content: '';
+	position: absolute;
+	left: 0;
+	bottom: 0;
+	width: 2px;
+	height: 22px;
+	background: #1b1b1b;
+	border-radius: 1px;
+	box-shadow: 0 0 0 0.75px rgba(255, 255, 255, 0.85), 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.finish-flag::after {
+	/* chequered flag flying from the top of the pole */
+	content: '';
+	position: absolute;
+	left: 1px;
+	top: 0;
+	width: 16px;
+	height: 11px;
+	background-color: #fff;
+	background-image: conic-gradient(#171717 90deg, #fff 0 180deg, #171717 0 270deg, #fff 0);
+	background-size: 8px 8px; /* 4px squares — coarse enough to read small, fine enough to look chequered */
+	border: 1.5px solid #fff;
+	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 1px 3px rgba(0, 0, 0, 0.5);
+}

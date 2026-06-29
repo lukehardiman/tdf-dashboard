@@ -169,9 +169,11 @@
 		if (!map || !maplibre || t.length < 2) return;
 		for (const m of markers) m.remove();
 		markers = [];
-		// Finish line marker (gold — pairs with the profile's yellow finish line).
+		// Finish: a chequered flag (shared .finish-flag, app.css) — the universal finish symbol, same
+		// on the route map. A flag, not a dot, so it's self-evident AND a different shape from the red
+		// flamme pill a km away (no two-reds clash). Anchored bottom-left: the pole base is the line.
 		markers.push(
-			new maplibre.Marker({ element: markerEl('finish-line-marker', `Finish — ${finishName}`) })
+			new maplibre.Marker({ element: markerEl('finish-flag', `Finish — ${finishName}`), anchor: 'bottom-left' })
 				.setLngLat(t[t.length - 1])
 				.addTo(map)
 		);
@@ -273,16 +275,6 @@
 		pointer-events: none;
 		padding: 0 20px;
 		text-align: center;
-	}
-	/* Finish marker: green disc — distinct from the red flamme and the yellow scrub dot (the three
-	   markers must not share a hue). Same green as the route map's endpoint markers. */
-	:global(.finish-line-marker) {
-		width: 13px;
-		height: 13px;
-		border-radius: 50%;
-		background: #1a8f3c;
-		border: 2px solid #fff;
-		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 	}
 	/* Flamme rouge (1 km to go): a small red pill, pairs with the profile's red "1 km" marker. */
 	:global(.flamme-marker) {

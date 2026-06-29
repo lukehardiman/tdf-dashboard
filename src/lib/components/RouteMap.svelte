@@ -156,6 +156,20 @@
 		endpoints.push(new maplibre.Marker({ element: el }).setLngLat(at).addTo(map));
 	}
 
+	// Finish = a chequered flag (the universal race-finish symbol), shared with the decisive-zone
+	// map so the finish looks identical everywhere. A flag, not a coloured dot — self-evident without
+	// relying on the start/finish colour convention, and a different SHAPE from the red flamme pill.
+	// Anchored bottom-left so the pole base sits on the line. Style: global .finish-flag in app.css.
+	function addFinishFlag(at: LngLat) {
+		if (!map || !maplibre) return;
+		const el = document.createElement('div');
+		el.className = 'finish-flag';
+		el.title = 'Finish';
+		endpoints.push(
+			new maplibre.Marker({ element: el, anchor: 'bottom-left' }).setLngLat(at).addTo(map)
+		);
+	}
+
 	// Render (or re-render) the current track onto a ready map. Runs on first load AND on
 	// client-side nav to another stage (the component instance is reused, only props change).
 	function renderTrack(t: LngLat[]) {
@@ -166,7 +180,7 @@
 		map.setPaintProperty('route-line', 'line-color', resolveColor());
 		map.fitBounds(trackBounds(t), { padding: 44, animate: false });
 		addEndpoint(t[0], '#1a8f3c', 'Start');
-		addEndpoint(t[t.length - 1], '#d62828', 'Finish');
+		addFinishFlag(t[t.length - 1]);
 		// Expose the rendered route's start coord — lets tests confirm the map tracks nav.
 		if (container) container.dataset.routeStart = `${t[0][0].toFixed(3)},${t[0][1].toFixed(3)}`;
 		const src = map.getSource('route') as GeoJSONSource | undefined;
