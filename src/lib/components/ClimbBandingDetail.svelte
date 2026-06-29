@@ -18,7 +18,8 @@
 		summitElevation = null,
 		binKm = 1,
 		width = 1000,
-		height = 300
+		height = 300,
+		onScrub
 	}: {
 		series: ElePoint[];
 		fromKm: number;
@@ -33,6 +34,8 @@
 		binKm?: number;
 		width?: number;
 		height?: number;
+		/** Emits km-to-go under the cursor (null = not scrubbing) so the finish map can track it. */
+		onScrub?: (kmToGo: number | null) => void;
 	} = $props();
 
 	const pad = { top: 34, right: 18, bottom: 46, left: 52 };
@@ -148,6 +151,11 @@
 		// Edge-aware anchor so the readout never clips the narrow zoomed frame's ends.
 		const anchor = hoverX > width - pad.right - innerW * 0.2 ? 'end' : hoverX < pad.left + innerW * 0.2 ? 'start' : 'middle';
 		return { x: hoverX, y: y(ele), kmToGo: toKm - km, ele, grade, anchor };
+	});
+
+	// Report km-to-go so the finish map can track the cursor (descent-runin stages show both).
+	$effect(() => {
+		onScrub?.(hover ? hover.kmToGo : null);
 	});
 </script>
 

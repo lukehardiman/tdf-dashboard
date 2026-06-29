@@ -10,19 +10,26 @@
 	let {
 		series,
 		track,
+		finishTrack = [],
 		distanceKm,
 		finishName,
 		finalKm = 5,
 		width = 1000,
-		height = 240
+		height = 240,
+		onScrub
 	}: {
 		series: ElePoint[];
 		track: LngLat[];
+		/** Dense final-km track (raw GPX, corners intact) — SAME source the finish map uses. When
+		 *  present, corner markers derive from it so the on-profile corners match the map exactly. */
+		finishTrack?: LngLat[];
 		distanceKm: number;
 		finishName: string;
 		finalKm?: number;
 		width?: number;
 		height?: number;
+		/** Emits km-to-go under the cursor (null = not scrubbing) so the finish map can track it. */
+		onScrub?: (kmToGo: number | null) => void;
 	} = $props();
 
 	// Symmetric L/R gutters: unlike the banded-climb view, the flat finish draws NO left altitude
@@ -113,6 +120,12 @@
 		// Edge-aware anchor so the readout never clips the narrow zoomed frame's ends.
 		const anchor = hoverX > width - pad.right - innerW * 0.2 ? 'end' : hoverX < pad.left + innerW * 0.2 ? 'start' : 'middle';
 		return { x: hoverX, y: y(ele), kmToGo: distanceKm - km, ele, grade, anchor };
+	});
+
+	// Report km-to-go to the parent so the finish map can track the cursor (the map places its dot
+	// that far back from the line). Null when not hovering → the map clears its dot.
+	$effect(() => {
+		onScrub?.(hover ? hover.kmToGo : null);
 	});
 </script>
 

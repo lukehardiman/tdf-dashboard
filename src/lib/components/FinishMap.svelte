@@ -4,10 +4,12 @@
 	// elevation profile, obvious in plan view — so the map earns its place exactly where the profile
 	// is weakest. Fed the DENSE finishTrack (raw GPX, corners intact; see scripts/build-profiles.ts):
 	// the route is already road-accurate, so no map-matching is needed and we draw a thin line so the
-	// bends read crisply. A flamme-rouge (1 km to go) marker and the finish marker orient the viewer.
+	// bends read crisply. A flamme-rouge (1 km to go) marker and the finish marker orient the viewer,
+	// and a scrub dot tracks the profile hover (the profile reports km-to-go; we place the dot that
+	// far back along the track).
 	import { onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import type { Map as MlMap, Marker as MlMarker } from 'maplibre-gl';
+	import type { Map as MlMap, Marker as MlMarker, GeoJSONSource } from 'maplibre-gl';
 	import { trackToGeoJSON, trackBounds, type LngLat } from '$lib/render/route';
 	import { haversineKm } from '$lib/render/curvature';
 
@@ -15,13 +17,16 @@
 		track,
 		colorVar = '--jaune',
 		finishName,
-		label = 'finish'
+		label = 'finish',
+		/** Km-to-go reported by the profile scrub (null = not scrubbing). Places the tracking dot. */
+		scrubKmToGo = null
 	}: {
 		track: LngLat[];
 		/** CSS custom-property name to colour the route line with (resolved at runtime). */
 		colorVar?: string;
 		finishName: string;
 		label?: string;
+		scrubKmToGo?: number | null;
 	} = $props();
 
 	// Same keyless, unmetered tile source as the main route map (single point of change there).
@@ -32,7 +37,8 @@
 
 	let maplibre: typeof import('maplibre-gl') | null = null;
 	let map: MlMap | null = null;
-	let markers: MlMarker[] = [];
+	let markers: MlMarker[] = []; // static: finish + flamme rouge
+	let scrubMarker: MlMarker | null = null; // moving: tracks the profile scrub
 	let observer: IntersectionObserver | null = null;
 
 	const hasTrack = $derived(track.length >= 2);
@@ -45,14 +51,21 @@
 		return v || '#ffd400';
 	}
 
-	// The point 1 km from the line — walk back along the dense track summing real distance.
-	function flammeRougeCoord(t: LngLat[]): LngLat | null {
+	// The point `km` back from the finish — walk the track from the end summing real distance and
+	// interpolate within the straddling segment. Returns null when km is beyond the track's start.
+	function coordAtKmFromEnd(t: LngLat[], km: number): LngLat | null {
+		if (t.length < 2) return null;
+		if (km <= 0) return t[t.length - 1];
 		let cum = 0;
 		for (let i = t.length - 1; i > 0; i--) {
-			cum += haversineKm(t[i], t[i - 1]);
-			if (cum >= 1) return t[i - 1];
+			const d = haversineKm(t[i], t[i - 1]);
+			if (cum + d >= km) {
+				const f = d > 0 ? (km - cum) / d : 0;
+				return [t[i][0] + (t[i - 1][0] - t[i][0]) * f, t[i][1] + (t[i - 1][1] - t[i][1]) * f];
+			}
+			cum += d;
 		}
-		return null; // track shorter than 1 km
+		return null;
 	}
 
 	// Lazy-load: only spin up MapLibre once the map scrolls into view (it's below the fold).
@@ -96,7 +109,9 @@
 
 			map.on('load', () => {
 				if (!map) return;
-				map.addSource('finish', { type: 'geojson', data: trackToGeoJSON(track) });
+				// Empty source + layers; the reactive renderTrack() effect fills them for the current
+				// track AND re-fills on client-side nav to another stage (the instance is reused).
+				map.addSource('finish', { type: 'geojson', data: trackToGeoJSON([]) });
 				map.addLayer({
 					id: 'finish-casing',
 					type: 'line',
@@ -113,7 +128,6 @@
 					layout: { 'line-join': 'round', 'line-cap': 'round' },
 					paint: { 'line-color': resolveColor(), 'line-width': 2.4 }
 				});
-				addMarkers();
 				status = 'ready';
 			});
 
@@ -127,37 +141,79 @@
 		}
 	}
 
-	function marker(cls: string, title: string): HTMLDivElement {
+	function markerEl(cls: string, title: string, text?: string): HTMLDivElement {
 		const el = document.createElement('div');
 		el.className = cls;
 		el.title = title;
+		if (text) el.textContent = text;
 		return el;
 	}
 
-	function addMarkers() {
-		if (!map || !maplibre) return;
+	function addMarkers(t: LngLat[]) {
+		if (!map || !maplibre || t.length < 2) return;
 		for (const m of markers) m.remove();
 		markers = [];
 		// Finish line marker (gold — pairs with the profile's yellow finish line).
 		markers.push(
-			new maplibre.Marker({ element: marker('finish-line-marker', `Finish — ${finishName}`) })
-				.setLngLat(track[track.length - 1])
+			new maplibre.Marker({ element: markerEl('finish-line-marker', `Finish — ${finishName}`) })
+				.setLngLat(t[t.length - 1])
 				.addTo(map)
 		);
-		// Flamme rouge — 1 km to go (red — pairs with the profile's red 1 km marker).
-		const fr = flammeRougeCoord(track);
+		// Flamme rouge — 1 km to go, labelled (pairs with the profile's red "1 km" marker).
+		const fr = coordAtKmFromEnd(t, 1);
 		if (fr) {
 			markers.push(
-				new maplibre.Marker({ element: marker('flamme-marker', '1 km to go') })
+				new maplibre.Marker({ element: markerEl('flamme-marker', '1 km to go', '1 km') })
 					.setLngLat(fr)
 					.addTo(map)
 			);
 		}
 	}
 
+	// Render (or re-render) the current track. Runs on first ready AND on client-side nav to another
+	// stage — without this the reused map keeps the PREVIOUS stage's finish (the nav-reload bug).
+	function renderTrack(t: LngLat[]) {
+		if (!map || t.length < 2) return;
+		// Guard against the canvas underfilling its container (e.g. if the map initialised before the
+		// wrap reached full height) — a short canvas would read as extra bottom padding.
+		map.resize();
+		(map.getSource('finish') as GeoJSONSource | undefined)?.setData(trackToGeoJSON(t));
+		map.setPaintProperty('finish-line', 'line-color', resolveColor());
+		map.fitBounds(trackBounds(t), { padding: 38, animate: false });
+		addMarkers(t);
+	}
+
+	$effect(() => {
+		const t = track;
+		if (status !== 'ready') return;
+		renderTrack(t);
+	});
+
+	// Scrub → tracking dot. The profile reports km-to-go; place the dot that far back along the
+	// track. Beyond the mapped window (km-to-go > track length) there's nowhere to show it → hide.
+	$effect(() => {
+		const k = scrubKmToGo;
+		const t = track;
+		if (status !== 'ready' || !map || !maplibre) return;
+		const coord = k == null ? null : coordAtKmFromEnd(t, k);
+		if (!coord) {
+			scrubMarker?.remove();
+			scrubMarker = null;
+			return;
+		}
+		if (!scrubMarker) {
+			scrubMarker = new maplibre.Marker({ element: markerEl('finish-scrub', 'Profile position') })
+				.setLngLat(coord)
+				.addTo(map);
+		} else {
+			scrubMarker.setLngLat(coord);
+		}
+	});
+
 	onDestroy(() => {
 		if (!browser) return;
 		observer?.disconnect();
+		scrubMarker?.remove();
 		for (const m of markers) m.remove();
 		markers = [];
 		map?.remove();
@@ -201,23 +257,38 @@
 		padding: 0 20px;
 		text-align: center;
 	}
-	/* Finish marker: gold disc, pairs with the profile's yellow finish line. */
+	/* Finish marker: green disc — distinct from the red flamme and the yellow scrub dot (the three
+	   markers must not share a hue). Same green as the route map's endpoint markers. */
 	:global(.finish-line-marker) {
 		width: 13px;
 		height: 13px;
 		border-radius: 50%;
-		background: var(--jaune);
-		border: 2px solid var(--ink);
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--jaune) 50%, transparent);
-	}
-	/* Flamme rouge (1 km to go): small red dot, pairs with the profile's red 1 km marker. */
-	:global(.flamme-marker) {
-		width: 11px;
-		height: 11px;
-		border-radius: 50%;
-		background: var(--t-mountains);
+		background: #1a8f3c;
 		border: 2px solid #fff;
 		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+	}
+	/* Flamme rouge (1 km to go): a small red pill, pairs with the profile's red "1 km" marker. */
+	:global(.flamme-marker) {
+		font-family: var(--font-mono);
+		font-size: 9px;
+		font-weight: 700;
+		line-height: 1;
+		color: #fff;
+		background: var(--t-mountains);
+		border: 1px solid rgba(255, 255, 255, 0.7);
+		border-radius: 999px;
+		padding: 3px 6px;
+		white-space: nowrap;
+		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+	}
+	/* Scrub dot: the moving tracking dot (jaune + halo, same as the route map's scrub marker). */
+	:global(.finish-scrub) {
+		width: 14px;
+		height: 14px;
+		border-radius: 50%;
+		background: var(--jaune);
+		border: 2px solid var(--ink);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--jaune) 45%, transparent);
 	}
 	/* Scale bar: muted to match the theme (same treatment as the route map). */
 	:global(.finish-map-wrap .maplibregl-ctrl-scale) {

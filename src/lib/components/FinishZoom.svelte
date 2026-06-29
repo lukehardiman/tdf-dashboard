@@ -79,6 +79,11 @@
 		finishTrack.length >= 2 && (archetype === 'flat' || descentRunIn)
 	);
 
+	// Profile scrub → finish map. The detail profile reports km-to-go under the cursor; the map
+	// places its tracking dot that far back from the line (it covers the final 3 km, so a cursor in
+	// the 5→3 km part of the profile is off the map and the dot simply clears).
+	let scrubKmToGo = $state<number | null>(null);
+
 	// Frame geometry per archetype.
 	const frame = $derived.by(() => {
 		const fc = finalClimb;
@@ -113,9 +118,17 @@
 				lengthKm={finalClimb.lengthKm}
 				avgGradient={finalClimb.avgGradient}
 				summitElevation={finalClimb.summitElevation}
+				onScrub={showFinishMap ? (k) => (scrubKmToGo = k) : undefined}
 			/>
 		{:else if archetype === 'flat'}
-			<FlatFinishDetail {series} {track} {distanceKm} finishName={stage.finish.name} />
+			<FlatFinishDetail
+				{series}
+				{track}
+				{finishTrack}
+				{distanceKm}
+				finishName={stage.finish.name}
+				onScrub={showFinishMap ? (k) => (scrubKmToGo = k) : undefined}
+			/>
 		{/if}
 
 		<!-- Plan-view of the final km: shows the corners the elevation profile can't. Only where
@@ -126,6 +139,7 @@
 				colorVar="--t-{stage.type}"
 				finishName={stage.finish.name}
 				label={stage.finish.name}
+				{scrubKmToGo}
 			/>
 		{/if}
 	</section>
@@ -137,7 +151,9 @@
 		border: 1px solid var(--line);
 		border-radius: var(--radius);
 		background: var(--surface);
-		padding: 16px 18px 10px;
+		/* Bottom padding matches the horizontal so the map (the last child) is inset equally on its
+		   left, right and bottom — symmetric in its panel. */
+		padding: 16px 18px 18px;
 	}
 	.fz-head {
 		display: flex;
