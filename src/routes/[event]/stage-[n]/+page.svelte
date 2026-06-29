@@ -192,8 +192,7 @@
 		<div class="hook-inner">
 			<div>
 				<h3>Ride this stage</h3>
-				<p>Push the route to your Intervals.icu calendar as a planned ride, or compare your
-				own power and times on the climbs.</p>
+				<p>Push this route to your Intervals.icu calendar and ride the stage yourself.</p>
 			</div>
 			<div class="hook-actions">
 				<a class="btn-primary" href="https://intervals.icu">Open in Intervals</a>
