@@ -99,10 +99,21 @@
 	const flammeKm = $derived(distanceKm - 1);
 	const showFlamme = $derived(flammeKm > fromKm);
 
-	// Closing drag over the final 2 km (signed). +ve = uphill drag, ≈0 = flat, −ve = downhill.
-	const drag = $derived(finishRampGradient(seg, 2));
+	// Closing gradient over the final ~500 m — the stretch that actually decides the sprint, not a
+	// long average that washes the kick out (a 2 km mean reads ~1% when the last 500 m ramps at 4%,
+	// understating the finish). Signed: +ve = uphill, ≈0 = flat, −ve = downhill. Banded into honest
+	// descriptors: a 2–5% closing ramp is an "uphill drag" (a flat finish with a sting — sapping but
+	// not selective); 5%+ is a steeper "kick"; below 2% reads flat; downhill calls it out.
+	const FINAL_STRETCH_KM = 0.5;
+	const drag = $derived(finishRampGradient(seg, FINAL_STRETCH_KM));
 	const dragLabel = $derived(
-		Math.abs(drag) < 1 ? 'flat run-in' : drag > 0 ? `${drag.toFixed(1)}% drag to the line` : `${Math.abs(drag).toFixed(1)}% downhill to the line`
+		drag >= 5
+			? `${drag.toFixed(1)}% uphill kick to the line`
+			: drag >= 2
+				? `${drag.toFixed(1)}% uphill drag to the line`
+				: drag <= -2
+					? `${Math.abs(drag).toFixed(1)}% downhill to the line`
+					: 'flat run-in'
 	);
 
 	// Scrub-to-read: a standalone readout (distance-to-go / altitude / gradient) for the run-in.

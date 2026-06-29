@@ -16,17 +16,19 @@ import {
 	type GeoElePoint,
 	type Waypoint
 } from '../src/lib/render/gpx.ts';
+import { finishMapWindowKm } from '../src/lib/render/finish.ts';
 import { tdf2026 } from '../src/lib/data/tdf2026.ts';
 
-// Dense, road-accurate final-km track for the zoomed finish map. DIAGNOSIS (stages 12/13, raw
-// vs downsampled overlaid on OSM): the raw GPX hugs the road at ~11 m spacing — it does NOT chord
+// Dense, road-accurate finish track for the zoomed finish map. DIAGNOSIS (stages 12/13, raw vs
+// downsampled overlaid on OSM): the raw GPX hugs the road at ~11 m spacing — it does NOT chord
 // across corners — while the public `track` is decimated to ~540 m and DOES chord badly. So the
-// finish map needs no map-matching service; it just needs the raw points for the final stretch.
-// We keep them at full resolution (corners are the whole point) for the final few km only.
-// 5 km so the map can match the decisive-zone PROFILE's window exactly (the flat-finish profile
-// frames the final 5 km; the climb-runin profile frames a shorter climb+run-in) — the map slices
-// this to that window, so the two views show the same distance and the scrub dot tracks 1:1.
-const FINISH_TRACK_KM = 5;
+// finish map needs no map-matching service; it just needs the raw points for the final stretch,
+// kept at full resolution (corners are the whole point).
+//
+// The span is the DECISIVE-ZONE window, which is archetype-dependent (finishMapWindowKm): a sprint
+// (D) frames the final ~5 km, but a climb + run-in (C, e.g. S20 Alpe d'Huez via Sarenne) frames the
+// whole climb→line, ~27 km. We emit exactly that window per stage so the map and the decisive-zone
+// PROFILE always show the same distance (and the scrub dot tracks 1:1); 0 km ⇒ no map ⇒ no track.
 
 function finishTrackFor(xml: string, km: number): [number, number][] {
 	const cum = cumulativeSeries(parseGpxTrack(xml));
@@ -84,6 +86,28 @@ for (const stage of tdf2026.stages) {
 	const series: [number, number][] = built.series.map((p: GeoElePoint) => [round(p.km, 2), round(p.ele, 1)]);
 	const track: [number, number][] = built.series.map((p: GeoElePoint) => [round(p.lon, 5), round(p.lat, 5)]);
 
+	const climbsOut = built.climbs.map((c) => ({
+		name: c.name,
+		rawName: c.rawName,
+		category: c.category,
+		startKm: round(c.startKm, 2),
+		summitKm: round(c.summitKm, 2),
+		lengthKm: round(c.lengthKm, 2),
+		avgGradient: round(c.avgGradient, 1),
+		elevationGainM: c.elevationGainM,
+		summitElevation: c.summitElevation,
+		mode: c.mode
+	}));
+
+	// Decisive-zone window the finish map frames (0 = no map). Computed from the SAME rounded series
+	// + climbs the page consumes, so the build artifact and the runtime classifier agree exactly.
+	const mapWindowKm = finishMapWindowKm({
+		type: stage.type,
+		distanceKm: round(built.distanceKm, 1),
+		climbs: climbsOut,
+		series: series.map(([km, ele]) => ({ km, ele }))
+	});
+
 	// Compact feature waypoints (sparse authored points — kept for timetable / where-to-watch).
 	const features: Record<string, { km: number; lat: number; lon: number; name: string; type: string }[]> = {};
 	for (const [kind, ws] of Object.entries(built.features)) {
@@ -106,20 +130,11 @@ for (const stage of tdf2026.stages) {
 		maxEleM: Math.round(built.maxEleM),
 		series,
 		track,
-		// Dense final-km track (raw GPX) for the zoomed finish map — corners intact, no decimation.
-		finishTrack: finishTrackFor(gpxText, FINISH_TRACK_KM),
-		climbs: built.climbs.map((c) => ({
-			name: c.name,
-			rawName: c.rawName,
-			category: c.category,
-			startKm: round(c.startKm, 2),
-			summitKm: round(c.summitKm, 2),
-			lengthKm: round(c.lengthKm, 2),
-			avgGradient: round(c.avgGradient, 1),
-			elevationGainM: c.elevationGainM,
-			summitElevation: c.summitElevation,
-			mode: c.mode
-		})),
+		// Dense decisive-zone track (raw GPX) for the zoomed finish map — corners intact, no
+		// decimation; sized to the map window (final ~5 km for a sprint, the whole climb+run-in for a
+		// technical descent), empty when this stage shows no map.
+		finishTrack: mapWindowKm > 0 ? finishTrackFor(gpxText, mapWindowKm) : [],
+		climbs: climbsOut,
 		// Uncategorised KOM tops — flagged for manual review, never assigned a category.
 		uncategorisedKoms: built.uncategorised.map((w) => ({
 			km: round(w.distKm, 2),

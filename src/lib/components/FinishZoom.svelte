@@ -10,9 +10,9 @@
 	//                   not in a second graphic of the same course.
 	import type { Stage } from '$lib/data/types';
 	import type { ProfileClimb } from '$lib/data/profiles';
-	import { elevationAtKm, type ElePoint } from '$lib/render/profile';
+	import type { ElePoint } from '$lib/render/profile';
 	import type { LngLat } from '$lib/render/curvature';
-	import { classifyStageFinish, type FinishArchetype } from '$lib/render/finish';
+	import { classifyStageFinish, finishMapWindowKm, type FinishArchetype } from '$lib/render/finish';
 	import ClimbBandingDetail from './ClimbBandingDetail.svelte';
 	import FlatFinishDetail from './FlatFinishDetail.svelte';
 	import FinishMap from './FinishMap.svelte';
@@ -62,22 +62,16 @@
 		tt: 'The course'
 	};
 
-	// Whether to pair a zoomed plan-view map with the profile — only where corners are the decisive,
-	// profile-invisible factor: D (sprint run-in) and C when the run-in DESCENDS (a technical descent
-	// to the line). A clean summit (B) or uphill kick (E) is a gradient story the profile already
-	// tells, and a TT (A) has its own course map — so no map there.
-	const FINISH_DESCENT_DROP_M = 30; // net drop over the run-in to count C as a "technical descent"
-	const descentRunIn = $derived(
-		archetype === 'climb-runin' &&
-			finalClimb != null &&
-			series.length > 0 &&
-			elevationAtKm(series, series[series.length - 1].km) <
-				(finalClimb.summitElevation ?? elevationAtKm(series, finalClimb.summitKm)) -
-					FINISH_DESCENT_DROP_M
+	// The decisive-zone window (km) — the SAME span the profile frames — that the plan-view map
+	// should show, or 0 when this archetype shows no map. Computed by the shared classifier so the
+	// map and profile (and the build-time finishTrack artifact) can never drift apart: D = final
+	// 5 km, C-with-descent = the whole climb→line (e.g. S20 Sarenne→Alpe ≈ 27 km), B/E/A = no map.
+	const mapWindowKm = $derived(
+		finishMapWindowKm({ type: stage.type, distanceKm, climbs, series })
 	);
-	const showFinishMap = $derived(
-		finishTrack.length >= 2 && (archetype === 'flat' || descentRunIn)
-	);
+	// Pair a map only where corners are the decisive, profile-invisible factor (the window fn returns
+	// 0 elsewhere) AND the dense finish track was emitted for it.
+	const showFinishMap = $derived(mapWindowKm > 0 && finishTrack.length >= 2);
 
 	// Profile scrub → finish map. The detail profile reports km-to-go under the cursor; the map
 	// places its tracking dot that far back from the line. The map is sliced to the SAME window as
@@ -102,12 +96,6 @@
 		return null;
 	});
 
-	// Map window = the profile's window, so the two views show the same distance. Flat finish frames
-	// the final 5 km (FlatFinishDetail's finalKm); the climb-runin frames its climb + run-in.
-	const FLAT_FINAL_KM = 5;
-	const finishMapWindowKm = $derived(
-		archetype === 'flat' ? FLAT_FINAL_KM : frame ? frame.toKm - frame.fromKm : FLAT_FINAL_KM
-	);
 </script>
 
 {#if archetype !== 'tt'}
@@ -133,6 +121,7 @@
 				{track}
 				{finishTrack}
 				{distanceKm}
+				finalKm={mapWindowKm}
 				finishName={stage.finish.name}
 				onScrub={showFinishMap ? (k) => (scrubKmToGo = k) : undefined}
 			/>
@@ -146,7 +135,7 @@
 				colorVar="--t-{stage.type}"
 				finishName={stage.finish.name}
 				label={stage.finish.name}
-				windowKm={finishMapWindowKm}
+				windowKm={mapWindowKm}
 				{scrubKmToGo}
 			/>
 		{/if}

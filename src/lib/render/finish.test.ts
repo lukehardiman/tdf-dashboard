@@ -50,12 +50,14 @@ describe('classifyFinish: archetype rules', () => {
 		expect(classifyFinish(facts({ distanceKm: 180, finalClimb: { category: 1, summitKm: 150 } }))).toBe('flat');
 	});
 
-	it('E — an uphill kick with no Cat 2+ climb at the line is punchy', () => {
+	it('E — a SELECTIVE uphill kick (≥5% over the final 500 m) with no Cat 2+ climb is punchy', () => {
 		expect(classifyFinish(facts({ finalClimb: { category: 4, summitKm: 178 }, finishRampGradient: 5 }))).toBe('punchy');
-		expect(classifyFinish(facts({ finalClimb: null, finishRampGradient: 4 }))).toBe('punchy');
+		expect(classifyFinish(facts({ finalClimb: null, finishRampGradient: 7 }))).toBe('punchy');
 	});
 
-	it('D — flat finish with no decisive climb is the catch-all', () => {
+	it('D — a 2–5% closing ramp is an "uphill drag", not a kick → stays flat (not punchy)', () => {
+		// The drag band: sapping but not selective. Stage 9 (4% over the final 500 m) lives here.
+		expect(classifyFinish(facts({ finalClimb: null, finishRampGradient: 4 }))).toBe('flat');
 		expect(classifyFinish(facts({ finalClimb: { category: 4, summitKm: 140 }, finishRampGradient: 0.2 }))).toBe('flat');
 		expect(classifyFinish(facts({ finalClimb: null, finishRampGradient: -1 }))).toBe('flat');
 	});
