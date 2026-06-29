@@ -5,7 +5,7 @@
 	// Purely descriptive geometry — where the road bends and tilts, never a predicted outcome.
 	import { detectCorners, type LngLat } from '$lib/render/curvature';
 	import { finishRampGradient } from '$lib/render/finish';
-	import type { ElePoint } from '$lib/render/profile';
+	import { elevationAtKm, gradientAtKm, type ElePoint } from '$lib/render/profile';
 
 	let {
 		series,
@@ -71,9 +71,48 @@
 	const dragLabel = $derived(
 		Math.abs(drag) < 1 ? 'flat run-in' : drag > 0 ? `${drag.toFixed(1)}% drag to the line` : `${Math.abs(drag).toFixed(1)}% downhill to the line`
 	);
+
+	// Scrub-to-read: a standalone readout (distance-to-go / altitude / gradient) for the run-in.
+	// No map-sync — the decisive zone sits below the fold, so the map is off-screen while scrubbing.
+	const FLAT_GRADE = 1;
+	function gradeColor(g: number): string {
+		if (g <= -FLAT_GRADE) return 'var(--text-2)';
+		const a = Math.abs(g);
+		if (a < 4) return 'var(--terr-lo)';
+		if (a < 7) return 'var(--terr-mid)';
+		return 'var(--terr-hi)';
+	}
+	let hoverX = $state<number | null>(null);
+	let svgEl = $state<SVGSVGElement | null>(null);
+	function onMove(e: PointerEvent) {
+		if (!svgEl) return;
+		const rect = svgEl.getBoundingClientRect();
+		const px = ((e.clientX - rect.left) / rect.width) * width;
+		hoverX = Math.max(pad.left, Math.min(width - pad.right, px));
+	}
+	function onLeave() {
+		hoverX = null;
+	}
+	const hover = $derived.by(() => {
+		if (hoverX == null || !seg.length) return null;
+		const km = fromKm + ((hoverX - pad.left) / innerW) * frameLen;
+		const ele = elevationAtKm(series, km);
+		const grade = gradientAtKm(series, km);
+		// Edge-aware anchor so the readout never clips the narrow zoomed frame's ends.
+		const anchor = hoverX > width - pad.right - innerW * 0.2 ? 'end' : hoverX < pad.left + innerW * 0.2 ? 'start' : 'middle';
+		return { x: hoverX, y: y(ele), kmToGo: distanceKm - km, ele, grade, anchor };
+	});
 </script>
 
-<svg viewBox="0 0 {width} {height}" class="flatfin" role="img" aria-label="Final {finalKm} km into {finishName}">
+<svg
+	bind:this={svgEl}
+	viewBox="0 0 {width} {height}"
+	class="flatfin"
+	role="img"
+	aria-label="Final {finalKm} km into {finishName}"
+	onpointermove={onMove}
+	onpointerleave={onLeave}
+>
 	<line x1={pad.left} y1={baseY} x2={width - pad.right} y2={baseY} stroke="var(--line)" />
 
 	{#if areaPath}<path d={areaPath} fill="var(--terr-lo)" fill-opacity="0.28" />{/if}
@@ -110,6 +149,22 @@
 	{/each}
 
 	<text x={pad.left} y={pad.top - 4} class="drag" text-anchor="start">Final {finalKm} km · {dragLabel}</text>
+
+	<!-- scrub: standalone read of distance-to-go / altitude / gradient at the cursor -->
+	{#if hover}
+		<g class="scrub" style="pointer-events:none">
+			<line x1={hover.x} y1={pad.top} x2={hover.x} y2={baseY} stroke="var(--jaune-text)" stroke-width="1" opacity="0.65" />
+			<circle cx={hover.x} cy={hover.y} r="4" fill="var(--jaune-text)" />
+			<g transform="translate({hover.x},{Math.max(pad.top + 11, hover.y - 12)})">
+				<text text-anchor={hover.anchor} class="scrub-label">
+					{hover.kmToGo.toFixed(1)}km · {Math.round(hover.ele)}m{#if Math.abs(hover.grade) >= FLAT_GRADE}
+						· <tspan class="scrub-grade" style="fill: {gradeColor(hover.grade)}"
+							>{hover.grade > 0 ? '' : '−'}{Math.abs(hover.grade).toFixed(1)}%</tspan
+						>{/if}
+				</text>
+			</g>
+		</g>
+	{/if}
 </svg>
 
 <style>
@@ -118,6 +173,8 @@
 		width: 100%;
 		height: auto;
 		overflow: visible;
+		touch-action: none;
+		cursor: crosshair;
 	}
 	.tick {
 		font-family: var(--font-mono);
@@ -140,5 +197,19 @@
 		font-family: var(--font-mono);
 		font-size: 10px;
 		fill: var(--text-2);
+	}
+	.scrub-label {
+		font-family: var(--font-mono);
+		font-size: 10px;
+		font-weight: 600;
+		fill: var(--jaune-text);
+		/* halo so the readout stays legible over the area fill, dark or light */
+		paint-order: stroke;
+		stroke: var(--surface);
+		stroke-width: 3px;
+		stroke-linejoin: round;
+	}
+	.scrub-grade {
+		font-weight: 700;
 	}
 </style>

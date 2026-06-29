@@ -3,8 +3,8 @@
 	// for archetype C continues past the summit to the finish (toKm > summitKm) with the run-in
 	// shown in neutral descent-grey. Consumes the framework-free bandClimb() core — the same data
 	// the unit tests lock — so a beautifully-banded WRONG climb can't happen.
-	import { bandClimb, SEVERITY_COLOR } from '$lib/render/climbBanding';
-	import { elevationAtKm, type ElePoint } from '$lib/render/profile';
+	import { bandClimb, SEVERITY_COLOR, gradientSeverity } from '$lib/render/climbBanding';
+	import { elevationAtKm, gradientAtKm, type ElePoint } from '$lib/render/profile';
 
 	let {
 		series,
@@ -114,11 +114,50 @@
 	// Position-aware summit label: anchor away from whichever edge the summit sits near so the
 	// text never overlaps the badge or clips the frame (B sits at the right edge; C is mid-frame).
 	const labelAnchor = $derived(summitX > width * 0.62 ? 'end' : summitX < width * 0.38 ? 'start' : 'middle');
-	const labelX = $derived(Math.max(pad.left, Math.min(width - pad.right, summitX)));
-	const labelY = $derived(Math.max(pad.top + 9, summitY - 11));
+	// Nudge the label clear of the summit dot: end-anchored text stops short of the dot (left),
+	// start-anchored starts past it (right), so the dot is never hidden behind the descriptor.
+	const labelX = $derived.by(() => {
+		const c = Math.max(pad.left, Math.min(width - pad.right, summitX));
+		return labelAnchor === 'end' ? c - 8 : labelAnchor === 'start' ? c + 8 : c;
+	});
+	// A middle-anchored label sits directly over the dot, so lift it higher than the side cases.
+	const labelY = $derived(Math.max(pad.top + 11, summitY - (labelAnchor === 'middle' ? 16 : 12)));
+
+	// Scrub-to-read: a standalone readout (distance-to-go / altitude / gradient) for studying the
+	// climb precisely — the banding gives at-a-glance severity, the scrub gives the exact number.
+	// No map-sync: the decisive zone sits below the fold, so the map is off-screen while scrubbing.
+	const FLAT_GRADE = 1;
+	let hoverX = $state<number | null>(null);
+	let svgEl = $state<SVGSVGElement | null>(null);
+	function onMove(e: PointerEvent) {
+		if (!svgEl) return;
+		const rect = svgEl.getBoundingClientRect();
+		const px = ((e.clientX - rect.left) / rect.width) * width;
+		hoverX = Math.max(pad.left, Math.min(width - pad.right, px));
+	}
+	function onLeave() {
+		hoverX = null;
+	}
+	const hover = $derived.by(() => {
+		if (hoverX == null || !seg.length) return null;
+		const km = fromKm + ((hoverX - pad.left) / innerW) * frameLen;
+		const ele = elevationAtKm(series, km);
+		const grade = gradientAtKm(series, km);
+		// Edge-aware anchor so the readout never clips the narrow zoomed frame's ends.
+		const anchor = hoverX > width - pad.right - innerW * 0.2 ? 'end' : hoverX < pad.left + innerW * 0.2 ? 'start' : 'middle';
+		return { x: hoverX, y: y(ele), kmToGo: toKm - km, ele, grade, anchor };
+	});
 </script>
 
-<svg viewBox="0 0 {width} {height}" class="banding" role="img" aria-label="Gradient-banded profile of {name}">
+<svg
+	bind:this={svgEl}
+	viewBox="0 0 {width} {height}"
+	class="banding"
+	role="img"
+	aria-label="Gradient-banded profile of {name}"
+	onpointermove={onMove}
+	onpointerleave={onLeave}
+>
 	<!-- baseline -->
 	<line x1={pad.left} y1={baseY} x2={width - pad.right} y2={baseY} stroke="var(--line)" />
 
@@ -158,6 +197,22 @@
 	<text x={labelX} y={labelY} class="summit-label" text-anchor={labelAnchor} fill={catColor(category)}>
 		{catLabel} · {name}{#if lengthKm}<tspan class="summit-meta"> · {lengthKm}km @ {avgGradient}%</tspan>{/if}
 	</text>
+
+	<!-- scrub: standalone read of distance-to-go / altitude / gradient at the cursor -->
+	{#if hover}
+		<g class="scrub" style="pointer-events:none">
+			<line x1={hover.x} y1={pad.top} x2={hover.x} y2={baseY} stroke="var(--jaune-text)" stroke-width="1" opacity="0.65" />
+			<circle cx={hover.x} cy={hover.y} r="4" fill="var(--jaune-text)" />
+			<g transform="translate({hover.x},{Math.max(pad.top + 11, hover.y - 12)})">
+				<text text-anchor={hover.anchor} class="scrub-label">
+					{hover.kmToGo.toFixed(1)}km · {Math.round(hover.ele)}m{#if Math.abs(hover.grade) >= FLAT_GRADE}
+						· <tspan class="scrub-grade" style="fill: {SEVERITY_COLOR[gradientSeverity(hover.grade)]}"
+							>{hover.grade > 0 ? '' : '−'}{Math.abs(hover.grade).toFixed(1)}%</tspan
+						>{/if}
+				</text>
+			</g>
+		</g>
+	{/if}
 </svg>
 
 <style>
@@ -166,6 +221,8 @@
 		width: 100%;
 		height: auto;
 		overflow: visible;
+		touch-action: none;
+		cursor: crosshair;
 	}
 	.grad {
 		font-family: var(--font-mono);
@@ -205,5 +262,19 @@
 	.summit-meta {
 		font-weight: 500;
 		fill: var(--text-2);
+	}
+	.scrub-label {
+		font-family: var(--font-mono);
+		font-size: 10px;
+		font-weight: 600;
+		fill: var(--jaune-text);
+		/* halo so the readout stays legible over any band colour, dark or light */
+		paint-order: stroke;
+		stroke: var(--surface);
+		stroke-width: 3px;
+		stroke-linejoin: round;
+	}
+	.scrub-grade {
+		font-weight: 700;
 	}
 </style>
