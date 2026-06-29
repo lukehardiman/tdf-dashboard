@@ -121,14 +121,9 @@
 	// Position-aware summit label: anchor away from whichever edge the summit sits near so the
 	// text never overlaps the badge or clips the frame (B sits at the right edge; C is mid-frame).
 	const labelAnchor = $derived(summitX > width * 0.62 ? 'end' : summitX < width * 0.38 ? 'start' : 'middle');
-	// Nudge the label clear of the summit dot: end-anchored text stops short of the dot (left),
-	// start-anchored starts past it (right), so the dot is never hidden behind the descriptor.
-	const labelX = $derived.by(() => {
-		const c = Math.max(pad.left, Math.min(width - pad.right, summitX));
-		return labelAnchor === 'end' ? c - 8 : labelAnchor === 'start' ? c + 8 : c;
-	});
-	// A middle-anchored label sits directly over the dot, so lift it higher than the side cases.
-	const labelY = $derived(Math.max(pad.top + 11, summitY - (labelAnchor === 'middle' ? 16 : 12)));
+	const labelX = $derived(Math.max(pad.left, Math.min(width - pad.right, summitX)));
+	// Lift the label clear of the profile line at the summit.
+	const labelY = $derived(Math.max(pad.top + 11, summitY - 12));
 
 	// Scrub-to-read: a standalone readout (distance-to-go / altitude / gradient) for studying the
 	// climb precisely — the banding gives at-a-glance severity, the scrub gives the exact number.
@@ -199,8 +194,7 @@
 		<text x={x(toKm)} y={pad.top - 4} class="finish" text-anchor="end">FINISH</text>
 	{/if}
 
-	<!-- summit marker: dot (category colour) + a single edge-aware label -->
-	<circle cx={summitX} cy={summitY} r="3.5" fill={catColor(category)} />
+	<!-- summit marker: a single edge-aware label, category-coloured (no dot — the label suffices) -->
 	<text x={labelX} y={labelY} class="summit-label" text-anchor={labelAnchor} fill={catColor(category)}>
 		{catLabel} · {name}{#if lengthKm}<tspan class="summit-meta"> · {lengthKm}km @ {avgGradient}%</tspan>{/if}
 	</text>
