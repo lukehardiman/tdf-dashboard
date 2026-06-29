@@ -38,8 +38,17 @@
 	const subTrack = $derived(idx.map((o) => track[o.i]).filter(Boolean) as LngLat[]);
 	const startKm = $derived(seg.length ? seg[0].km : fromKm);
 
-	const eMin = $derived(seg.length ? Math.min(...seg.map((p) => p.ele)) : 0);
-	const eMax = $derived(seg.length ? Math.max(...seg.map((p) => p.ele)) : 1);
+	// The first downsampled point at/after fromKm usually sits a little PAST the frame's left edge,
+	// which left the line + shading starting late and inconsistently. Anchor an interpolated point
+	// at exactly fromKm so every flat-finish frame begins flush with the container's left edge.
+	const linePts = $derived.by(() => {
+		if (!seg.length) return [] as ElePoint[];
+		if (seg[0].km > fromKm + 1e-6) return [{ km: fromKm, ele: elevationAtKm(series, fromKm) }, ...seg];
+		return seg;
+	});
+
+	const eMin = $derived(linePts.length ? Math.min(...linePts.map((p) => p.ele)) : 0);
+	const eMax = $derived(linePts.length ? Math.max(...linePts.map((p) => p.ele)) : 1);
 	const frameLen = $derived(Math.max(0.001, distanceKm - fromKm));
 	const x = $derived((km: number) => pad.left + ((km - fromKm) / frameLen) * innerW);
 	// Floor the vertical span so a genuinely flat finish LOOKS flat — without this the detail
@@ -49,10 +58,10 @@
 	// Sit the line a little above the floor so small undulations have room to read both ways.
 	const y = $derived((ele: number) => baseY - 8 - ((ele - eMin) / eRange) * (innerH - 16));
 
-	const linePath = $derived('M' + seg.map((p) => `${x(p.km).toFixed(2)} ${y(p.ele).toFixed(2)}`).join(' L'));
+	const linePath = $derived('M' + linePts.map((p) => `${x(p.km).toFixed(2)} ${y(p.ele).toFixed(2)}`).join(' L'));
 	const areaPath = $derived(
-		seg.length
-			? linePath + ` L${x(seg[seg.length - 1].km).toFixed(2)} ${baseY} L${x(seg[0].km).toFixed(2)} ${baseY} Z`
+		linePts.length
+			? linePath + ` L${x(linePts[linePts.length - 1].km).toFixed(2)} ${baseY} L${x(linePts[0].km).toFixed(2)} ${baseY} Z`
 			: ''
 	);
 

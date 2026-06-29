@@ -73,7 +73,14 @@
 		})
 	);
 
-	const linePath = $derived('M' + seg.map((p) => `${x(p.km).toFixed(2)} ${y(p.ele).toFixed(2)}`).join(' L'));
+	// Anchor the silhouette at exactly fromKm (interpolated) so the line starts flush with the
+	// banded fill's left edge — the bands already begin at fromKm, the raw series may not.
+	const linePts = $derived(
+		seg.length && seg[0].km > fromKm + 1e-6
+			? [{ km: fromKm, ele: elevationAtKm(series, fromKm) }, ...seg]
+			: seg
+	);
+	const linePath = $derived('M' + linePts.map((p) => `${x(p.km).toFixed(2)} ${y(p.ele).toFixed(2)}`).join(' L'));
 
 	// Per-km gradient labels — suppress to a stride if bins get too narrow to read.
 	const binPx = $derived(bins.length ? innerW / bins.length : innerW);
