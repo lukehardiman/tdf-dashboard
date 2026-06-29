@@ -79,11 +79,15 @@
 	{#if areaPath}<path d={areaPath} fill="var(--terr-lo)" fill-opacity="0.28" />{/if}
 	<path d={linePath} fill="none" stroke="var(--text)" stroke-width="1.6" stroke-linejoin="round" opacity="0.92" />
 
-	<!-- corners -->
+	<!-- corners: a triangle pointing the way the road turns (L/R) — same convention as the TT
+	     profile, so corners read consistently across the site (no up-arrow + letter). -->
 	{#each corners as c (c.absKm)}
-		<g transform="translate({x(c.absKm)},{baseY})">
-			<path d="M-4 6 L0 -4 L4 6 Z" fill="var(--t-hills)" opacity="0.9" />
-			<text y="18" class="corner" text-anchor="middle">{c.dir}</text>
+		<g transform="translate({x(c.absKm)},{baseY - 5})">
+			<path
+				d={c.dir === 'L' ? 'M-5 0 L4 -5 L4 5 Z' : 'M5 0 L-4 -5 L-4 5 Z'}
+				fill="var(--t-hills)"
+				opacity="0.9"
+			/>
 		</g>
 	{/each}
 
@@ -102,7 +106,7 @@
 
 	<!-- distance ticks (km to go) -->
 	{#each Array.from({ length: Math.floor(frameLen) + 1 }, (_, i) => i) as k (k)}
-		<text x={x(distanceKm - k)} y={height - 22} class="tick" text-anchor="middle">{k === 0 ? '0' : `−${k}`}</text>
+		<text x={x(distanceKm - k)} y={height - 22} class="tick" text-anchor="middle">{k}km</text>
 	{/each}
 
 	<text x={pad.left} y={pad.top - 4} class="drag" text-anchor="start">Final {finalKm} km · {dragLabel}</text>
@@ -119,12 +123,6 @@
 		font-family: var(--font-mono);
 		font-size: 9px;
 		fill: var(--text-3);
-	}
-	.corner {
-		font-family: var(--font-mono);
-		font-size: 8.5px;
-		font-weight: 700;
-		fill: var(--t-hills);
 	}
 	.flamme {
 		font-family: var(--font-mono);

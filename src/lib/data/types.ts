@@ -73,8 +73,8 @@ export interface RestDayMeta {
 }
 
 export const TYPE_LABELS: Record<StageType, string> = {
-	ttt: 'Team time trial',
-	itt: 'Individual time trial',
+	ttt: 'Team Time Trial',
+	itt: 'Individual Time Trial',
 	flat: 'Flat',
 	hills: 'Hilly',
 	mountains: 'Mountain'

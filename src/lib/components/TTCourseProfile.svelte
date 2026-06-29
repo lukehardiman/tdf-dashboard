@@ -139,7 +139,7 @@
 	style="aspect-ratio: {width} / {height};"
 	class="tt"
 	role="img"
-	aria-label="Time-trial course for stage {stageN}: elevation, demand-type sectors and corners"
+	aria-label="Time Trial Course for stage {stageN}: elevation, demand-type sectors and corners"
 	onpointermove={onMove}
 	onpointerleave={onLeave}
 >

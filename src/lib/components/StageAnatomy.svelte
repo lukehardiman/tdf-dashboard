@@ -4,6 +4,7 @@
 	import type { LngLat } from '$lib/render/route';
 	import type { ClimbMarkerInput } from '$lib/render/profile';
 	import { classifyStageFinish, type FinishArchetype } from '$lib/render/finish';
+	import { classifyTTSectors } from '$lib/render/ttSectors';
 	import RouteMap from './RouteMap.svelte';
 	import StageProfile from './StageProfile.svelte';
 	import TTCourseProfile from './TTCourseProfile.svelte';
@@ -33,26 +34,32 @@
 	// profile — and no separate decisive-zone graphic, which would just show the same course twice.
 	const isTT = $derived(stage.type === 'itt' || stage.type === 'ttt');
 
-	// The "Finish" vital is derived from the SAME geometry classifier that drives the Decisive Zone,
-	// not the crude summitFinish boolean — so a flat city sprint reads "Flat", a punchy kick reads
-	// "Uphill", a TT reads "Time trial", instead of everything collapsing to "Summit"/"Valley"
-	// ("Valley" was nonsense for sprints and time trials alike).
-	const FINISH_LABEL: Record<FinishArchetype, string> = {
+	// The "Finish" vital describes the finish CHARACTER, never the discipline — the type badge
+	// already says "Time Trial", so restating it here is noise. Road stages use the finish-geometry
+	// archetype (the same logic as the Decisive Zone); TTs use their CLOSING sector (the same sector
+	// analysis shown in the course profile below), so a hilltop TT reads "Uphill" and a flat run-in
+	// reads "Flat" — consistent with what's drawn directly beneath it.
+	const ROAD_FINISH: Record<FinishArchetype, string> = {
 		summit: 'Summit',
 		'climb-runin': 'Climb + run-in',
 		punchy: 'Uphill',
 		flat: 'Flat',
-		tt: 'Time trial'
+		tt: 'Flat' // unreachable for road stages; archetype short-circuits to tt only for itt/ttt
 	};
 	const finishLabel = $derived.by(() => {
 		if (!series || !series.length) return stage.summitFinish ? 'Summit' : 'Flat';
+		if (isTT) {
+			const sectors = classifyTTSectors(series, track && track.length === series.length ? track : null);
+			const last = sectors[sectors.length - 1]?.type;
+			return last === 'climb' ? 'Uphill' : last === 'descent' ? 'Downhill' : 'Flat';
+		}
 		const arch = classifyStageFinish({
 			type: stage.type,
 			distanceKm: series[series.length - 1].km,
 			climbs: (climbs ?? []).map((c) => ({ category: c.category, summitKm: c.summitKm })),
 			series
 		});
-		return FINISH_LABEL[arch];
+		return ROAD_FINISH[arch];
 	});
 </script>
 
@@ -84,7 +91,7 @@
 	</div>
 
 	<div class="pane profile-pane" style="view-transition-name: stage-{stage.n};">
-		<span class="pane-label mono">{isTT ? 'Time-trial course' : 'Elevation profile'}</span>
+		<span class="pane-label mono">{isTT ? 'Time Trial Course' : 'Elevation Profile'}</span>
 		{#if isTT && series}
 			<TTCourseProfile
 				{series}
