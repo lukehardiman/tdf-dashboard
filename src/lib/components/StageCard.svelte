@@ -59,11 +59,12 @@
 		<StageProfile {stage} {series} width={520} height={92} showMarkers={false} />
 	</div>
 
-	<span class="cta" aria-hidden="true">View stage</span>
+	<span class="cta" aria-hidden="true">View Stage <span class="chev">→</span></span>
 </a>
 
 <style>
 	.card {
+		--spark-w: 280px; /* shared by the wide-screen grid column AND the CTA's x-anchor below */
 		position: relative;
 		display: grid;
 		grid-template-columns: auto 1fr;
@@ -152,17 +153,27 @@
 
 	.spark { grid-area: spark; margin: 0 -4px; opacity: 0.92; }
 
+	/* CTA = a visual AFFORDANCE, not the click target: the whole card is the <a>. So it's a "View
+	   Stage →" hint (not a button, which would imply it's the only target). Title case + 0.9rem give
+	   it presence as a deliberate label rather than inline prose; the chevron nudges on card hover. */
 	.cta {
 		grid-area: cta;
 		justify-self: end;
-		font-size: 0.72rem;
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		font-size: 0.9rem;
 		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
+		letter-spacing: 0.02em;
 		color: var(--text-3);
-		transition: color 0.2s;
+		white-space: nowrap;
+		transition: color 0.2s var(--ease);
+	}
+	.cta .chev {
+		transition: transform 0.2s var(--ease);
 	}
 	.card:hover .cta { color: var(--jaune-text); }
+	.card:hover .cta .chev { transform: translateX(3px); }
 
 	/* Today */
 	.card.today {
@@ -175,12 +186,17 @@
 	.card.past { opacity: 0.62; }
 	.card.past:hover { opacity: 1; }
 
-	@media (min-width: 640px) {
+	/* Wide layout only kicks in when there's genuinely room for all four regions side by side. Below
+	   this (phones AND tablets) the card stays stacked with the CTA in its own bottom-row, justified
+	   to the bottom-right corner — never squeezed into the body where it would overlap the towns. */
+	@media (min-width: 900px) {
 		.card {
-			grid-template-columns: auto 1fr 280px;
-			grid-template-areas:
-				'head body spark'
-				'head cta spark';
+			/* CTA gets its OWN column between body and thumbnail — so it sits in a clean vertical
+			   column (its right edge a constant distance from the thumbnail, the 1fr body absorbing the
+			   slack) and is vertically centred by align-items, with zero chance of overlapping the body
+			   text (it's a separate cell, not floated over it). */
+			grid-template-columns: auto 1fr auto var(--spark-w);
+			grid-template-areas: 'head body cta spark';
 			align-items: center;
 		}
 		.spark { align-self: center; }
