@@ -10,13 +10,16 @@
 		type ElePoint,
 		type EleScale
 	} from '$lib/render/profile';
-	import { eleScale } from '$lib/data/profiles';
+	import { eleScale, type ProfileSprint } from '$lib/data/profiles';
 
 	let {
 		stage,
 		series: provided = null,
 		/** GPX climbs to mark on the profile. Falls back to the stage's seeded climbs. */
 		climbs = null,
+		/** Intermediate sprints to mark on the profile (only those with a km — circuit sprints,
+		 *  km null, have no single profile position and are shown on the route map only). */
+		sprints = [],
 		width = 800,
 		height = 240,
 		interactive = false,
@@ -29,6 +32,7 @@
 		stage: Stage;
 		series?: ElePoint[] | null;
 		climbs?: ClimbMarkerInput[] | null;
+		sprints?: ProfileSprint[];
 		width?: number;
 		height?: number;
 		interactive?: boolean;
@@ -91,6 +95,23 @@
 
 	const maxKm = $derived(series[series.length - 1].km);
 
+	// Intermediate sprints with a known km → a position on the profile (a green tick + dot on the line
+	// at the sprint's distance). Circuit sprints (km null) have no single profile position, so they're
+	// route-map-only. Gated on showMarkers so the tiny index-card spark stays clean.
+	const baseY = $derived(height - pad.bottom);
+	const sprintMarks = $derived(
+		(showMarkers ? sprints : [])
+			.filter((s) => s.km != null)
+			.map((s) => {
+				const km = s.km as number;
+				const x = pad.left + (km / maxKm) * (width - pad.left - pad.right);
+				const idx = Math.round((km / maxKm) * (series.length - 1));
+				const ele = series[Math.max(0, Math.min(series.length - 1, idx))].ele;
+				const y = eleProjection(series, height, pad, scale)(ele);
+				return { x, y, km };
+			})
+	);
+
 	function onMove(e: PointerEvent) {
 		if (!interactive || !svgEl) return;
 		const rect = svgEl.getBoundingClientRect();
@@ -126,14 +147,23 @@
 
 	const hoverData = $derived.by(() => {
 		if (hoverX == null) return null;
-		const t = (hoverX - pad.left) / (width - pad.left - pad.right);
+		const innerW = width - pad.left - pad.right;
+		const t = (hoverX - pad.left) / innerW;
 		const km = t * maxKm;
 		const idx = Math.round((km / maxKm) * (series.length - 1));
 		const p = series[Math.max(0, Math.min(series.length - 1, idx))];
 		// Same shared projection as the line/markers so the scrub dot rides the drawn profile.
 		const y = eleProjection(series, height, pad, scale)(p.ele);
 		const grade = gradientAtKm(series, km);
-		return { km: p.km, ele: p.ele, x: hoverX, y, grade };
+		// Edge-aware anchor (ported from ClimbBandingDetail) so the centred readout doesn't clip the
+		// box near the ends — flip to end/start within 20% of either edge, middle through the centre.
+		const anchor =
+			hoverX > width - pad.right - innerW * 0.2
+				? 'end'
+				: hoverX < pad.left + innerW * 0.2
+					? 'start'
+					: 'middle';
+		return { km: p.km, ele: p.ele, x: hoverX, y, grade, anchor };
 	});
 </script>
 
@@ -191,7 +221,7 @@
 				/>
 				<circle cx={m.x} cy={m.summitY} r="2.4" fill={catColor(m.category)} />
 				{#if m.showName}
-					<text x={m.boxX} y={m.boxY - 9} class="marker-name" text-anchor="middle">{m.name}</text>
+					<text x={m.boxX} y={m.boxY - 9} class="marker-name" text-anchor={m.nameAnchor}>{m.name}</text>
 				{/if}
 				<rect
 					x={m.boxX - boxW(m.category) / 2}
@@ -210,6 +240,16 @@
 		{/each}
 	{/if}
 
+	{#each sprintMarks as s (s.x)}
+		<!-- intermediate sprint: green points-classification cue, distinct from the climb boxes
+		     (above) and the start/finish town labels — a dot on the line + a thin guide to the axis. -->
+		<g class="sprint" style="pointer-events:none">
+			<line x1={s.x} y1={s.y} x2={s.x} y2={baseY} stroke="#1f9e4b" stroke-width="1" stroke-dasharray="2 2" opacity="0.7" />
+			<circle cx={s.x} cy={s.y} r="2.8" fill="#1f9e4b" stroke="var(--surface)" stroke-width="1" />
+			<text x={s.x} y={baseY + 12} class="sprint-label" text-anchor="middle">» Sprint</text>
+		</g>
+	{/each}
+
 	{#if interactive && hoverData}
 		<g class="scrub" style="pointer-events:none">
 			<line
@@ -223,7 +263,7 @@
 			/>
 			<circle cx={hoverData.x} cy={hoverData.y} r="4" fill="var(--jaune-text)" />
 			<g transform="translate({hoverData.x},{Math.max(pad.top, hoverData.y - 12)})">
-				<text text-anchor="middle" class="scrub-label">
+				<text text-anchor={hoverData.anchor} class="scrub-label">
 					{hoverData.km.toFixed(1)}km · {Math.round(hoverData.ele)}m{#if Math.abs(hoverData.grade) >= FLAT_GRADE}
 						· <tspan style="fill: {gradeColor(hoverData.grade)}"
 							>{hoverData.grade > 0 ? '' : '−'}{Math.abs(hoverData.grade).toFixed(1)}%</tspan
@@ -264,6 +304,17 @@
 		font-family: var(--font-mono);
 		font-size: 10px;
 		fill: var(--text-3);
+	}
+	.sprint-label {
+		font-family: var(--font-mono);
+		font-size: 9px;
+		font-weight: 700;
+		fill: #1f9e4b;
+		/* halo in the ground colour so the green caption reads over the terrain fill, both themes */
+		paint-order: stroke;
+		stroke: var(--surface);
+		stroke-width: 3px;
+		stroke-linejoin: round;
 	}
 	.scrub-label {
 		font-family: var(--font-mono);

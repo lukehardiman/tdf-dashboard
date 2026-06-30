@@ -124,6 +124,24 @@ describe('render: layoutClimbMarkers (collision handling)', () => {
 		expect(m[0].category).toBe('HC');
 		expect(m[1].category).toBe('4');
 	});
+
+	it('anchors names edge-aware so they never clip the frame', () => {
+		// A long-named climb at the very end (summit finish) must right-anchor so the name
+		// stays inside; the same name mid-frame stays centred; at the start it left-anchors.
+		const longName = 'Plateau de Solaison Brison';
+		const mk = (km: number) => layoutClimbMarkers([{ summitKm: km, category: 'hc', name: longName }], series, opts)[0];
+
+		const right = mk(170); // far right
+		expect(right.nameAnchor).toBe('end');
+		// Right-anchored at boxX, the name extends left → its right edge stays within the frame.
+		expect(right.boxX).toBeLessThanOrEqual(opts.width - pad.right);
+
+		const left = mk(0); // far left
+		expect(left.nameAnchor).toBe('start');
+
+		const middle = mk(85); // centre — plenty of room both sides
+		expect(middle.nameAnchor).toBe('middle');
+	});
 });
 
 describe('render: shared elevation scale (cross-stage comparability)', () => {
