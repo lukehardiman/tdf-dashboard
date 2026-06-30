@@ -103,6 +103,7 @@
 					{event}
 					state={stageState(item.stage, now)}
 					series={data.previews[item.stage.n]}
+					times={data.times[item.stage.n]}
 				/>
 			{:else}
 				<RestDay date={item.date} location={item.location} state={dayState(item.date, now)} />

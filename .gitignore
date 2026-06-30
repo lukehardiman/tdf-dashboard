@@ -36,3 +36,6 @@ scratchpad/
 test-results/
 scratchpad/
 test-results/
+
+# Python bytecode cache (local build scripts)
+__pycache__/

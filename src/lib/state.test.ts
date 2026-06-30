@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { stageState, focusStage, isRestDay, toISODate, stageOn, timeline, dayState, raceStatus } from './state';
+import { stageState, focusStage, isRestDay, toISODate, stageOn, timeline, dayState, raceStatus, startLine } from './state';
 import { tdf2026 } from './data/tdf2026';
+import type { StageTimes } from './data/types';
 
 describe('state: raceStatus', () => {
 	it('is pre before the Grand Départ', () => {
@@ -27,6 +28,37 @@ describe('state: raceStatus', () => {
 	it('is post after the final stage', () => {
 		const s = raceStatus(tdf2026, new Date('2026-07-27T10:00:00'));
 		expect(s.phase).toBe('post');
+	});
+});
+
+describe('state: startLine', () => {
+	const road: StageTimes = { startTime: '13:05', tz: 'CEST' };
+
+	it('returns null when there are no times (omit, never fabricate)', () => {
+		expect(startLine(null, 'flat')).toBeNull();
+		expect(startLine(undefined, 'mountains')).toBeNull();
+		expect(startLine({ startTime: '', tz: 'CEST' }, 'flat')).toBeNull();
+	});
+
+	it('leads a road stage with "Starts" and no finish when none supplied', () => {
+		const line = startLine(road, 'flat');
+		expect(line).toEqual({ lead: 'Starts', time: '13:05', tz: 'CEST', finish: null });
+	});
+
+	it('shows the official expected finish on a road stage when supplied', () => {
+		const line = startLine({ ...road, expectedFinish: '16:11' }, 'hills');
+		expect(line?.finish).toBe('16:11');
+		expect(line?.lead).toBe('Starts');
+	});
+
+	it('leads a time trial with "First rider" (not a mass start)', () => {
+		expect(startLine(road, 'itt')?.lead).toBe('First rider');
+		expect(startLine(road, 'ttt')?.lead).toBe('First rider');
+	});
+
+	it('never projects a finish for a time trial, even if one is present', () => {
+		const line = startLine({ ...road, expectedFinish: '17:20' }, 'itt');
+		expect(line?.finish).toBeNull();
 	});
 });
 

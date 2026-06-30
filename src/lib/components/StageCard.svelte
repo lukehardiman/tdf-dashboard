@@ -1,24 +1,30 @@
 <script lang="ts">
-	import type { Stage, EventMeta } from '$lib/data/types';
+	import type { Stage, EventMeta, StageTimes } from '$lib/data/types';
 	import { TYPE_SHORT, TYPE_LABELS } from '$lib/data/types';
-	import { formatDate, type StageState } from '$lib/state';
+	import { formatDate, startLine, type StageState } from '$lib/state';
 	import type { ElePoint } from '$lib/render/profile';
 	import StageProfile from './StageProfile.svelte';
+	import ClockIcon from './ClockIcon.svelte';
 
 	let {
 		stage,
 		event,
 		state = 'upcoming',
-		series = null
+		series = null,
+		times = null
 	}: {
 		stage: Stage;
 		event: EventMeta;
 		state?: StageState;
 		/** GPX-derived preview series; falls back to synthesised when absent. */
 		series?: ElePoint[] | null;
+		/** Official start time; null → omit the time line. */
+		times?: StageTimes | null;
 	} = $props();
 
 	const href = $derived(`/${event.slug}/stage-${stage.n}`);
+	// Compact when-to-watch on the card: start only. 'First rider' on TTs (never a mass start).
+	const when = $derived(startLine(times, stage.type));
 </script>
 
 <a
@@ -38,6 +44,9 @@
 		</div>
 		<div class="meta">
 			<span class="date mono">{formatDate(stage.date)}</span>
+			{#if when}
+				<span class="when mono"><span class="clock-ic" aria-hidden="true"><ClockIcon /></span>{#if when.lead === 'First rider'}<span class="q">1st rider</span>{' '}{/if}<strong>{when.time}</strong> {when.tz}</span>
+			{/if}
 			<span class="type-tag" style="--tag: var(--t-{stage.type})">{TYPE_SHORT[stage.type]}</span>
 		</div>
 	</div>
@@ -122,6 +131,12 @@
 	}
 	.meta { display: flex; flex-direction: column; gap: 5px; margin-top: 7px; }
 	.date { font-size: 0.72rem; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em; }
+	/* Compact start time, paired with the date. Start only on the card — the actionable number. */
+	.when { font-size: 0.72rem; color: var(--text-2); letter-spacing: 0.02em; }
+	.when strong { color: var(--text); font-weight: 700; }
+	.when .q { color: var(--text-3); }
+	/* Clock cue: subordinate metadata — same muted weight as the date, not full white. */
+	.when .clock-ic { color: var(--text-3); margin-right: 4px; }
 	.type-tag {
 		font-size: 0.66rem;
 		font-weight: 700;

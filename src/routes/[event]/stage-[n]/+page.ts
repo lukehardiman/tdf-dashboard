@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { events, getEvent } from '$lib';
 import { loadStageRender } from '$lib/data/profiles';
+import { stageTimes } from '$lib/data/times';
 import type { EntryGenerator, PageLoad } from './$types';
 
 export const load: PageLoad = async ({ params }) => {
@@ -17,6 +18,8 @@ export const load: PageLoad = async ({ params }) => {
 	return {
 		event,
 		stage,
+		// Official "when do I tune in" times (start only at launch); null → line omitted.
+		times: stageTimes(n),
 		series: render?.series ?? null,
 		track: render?.track ?? null,
 		finishTrack: render?.finishTrack ?? null,
@@ -24,6 +27,7 @@ export const load: PageLoad = async ({ params }) => {
 		// no GPX profile exists for the stage.
 		climbs: render?.climbs ?? null,
 		uncategorisedKomCount: render?.uncategorisedKomCount ?? 0,
+		sprints: render?.sprints ?? [],
 		prev: event.stages[idx - 1] ?? null,
 		next: event.stages[idx + 1] ?? null
 	};

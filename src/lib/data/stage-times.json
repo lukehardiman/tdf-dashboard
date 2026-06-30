@@ -1,0 +1,116 @@
+{
+  "_meta": {
+    "source": "procyclingstats — 'Start time' info-box row (official). Direct-parsed locally; see scripts/fetch-stage-times.py.",
+    "posture": "INTERIM, PCS-sourced (stands in for ASO official). Swap to the authoritative ASO/letour feed when that access lands.",
+    "timezone": "PCS omits the zone on the 2026 pages; the whole Tour runs in France+Spain in July → CEST applied as the race-local constant (see RACE_TZ in the collector).",
+    "expectedFinish": "Optional phase-2 override = official letour.fr expected arrival. null at launch → finish line omitted. We never compute a finish.",
+    "ttNote": "TT stages (ttt/itt) store the first-rider start; they never get a finish."
+  },
+  "stages": {
+    "1": {
+      "startTime": "17:05",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "2": {
+      "startTime": "13:55",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "3": {
+      "startTime": "12:20",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "4": {
+      "startTime": "13:25",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "5": {
+      "startTime": "14:15",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "6": {
+      "startTime": "12:40",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "7": {
+      "startTime": "13:25",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "8": {
+      "startTime": "13:25",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "9": {
+      "startTime": "13:45",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "10": {
+      "startTime": "13:25",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "11": {
+      "startTime": "14:05",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "12": {
+      "startTime": "13:40",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "13": {
+      "startTime": "13:20",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "14": {
+      "startTime": "13:30",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "15": {
+      "startTime": "13:20",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "16": {
+      "startTime": "13:00",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "17": {
+      "startTime": "13:35",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "18": {
+      "startTime": "12:50",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "19": {
+      "startTime": "14:15",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "20": {
+      "startTime": "11:30",
+      "tz": "CEST",
+      "expectedFinish": null
+    },
+    "21": {
+      "startTime": "16:25",
+      "tz": "CEST",
+      "expectedFinish": null
+    }
+  }
+}

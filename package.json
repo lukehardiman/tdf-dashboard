@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "validate-climbs": "node scripts/validate-climbs.ts"
+    "validate-climbs": "node scripts/validate-climbs.ts",
+    "stage-times": "python3 scripts/fetch-stage-times.py"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",

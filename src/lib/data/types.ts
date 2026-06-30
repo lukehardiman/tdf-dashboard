@@ -46,6 +46,22 @@ export interface Stage {
 	summitFinish?: boolean;
 }
 
+/**
+ * Official "when do I tune in" times for a stage. Collected at build time from
+ * procyclingstats' "Start time" field (see scripts/fetch-stage-times.py) — start time
+ * only, because PCS publishes no expected-arrival time. `expectedFinish` is an optional
+ * phase-2 override for the official letour.fr arrival; omitted at launch. We never compute
+ * a finish from distance/speed — a guessed time next to an official one mixes registers.
+ */
+export interface StageTimes {
+	/** Official start, race-local 'HH:MM'. For TTs this is the FIRST rider off, not a mass start. */
+	startTime: string;
+	/** Race-local timezone label exactly as published, e.g. 'CEST'. */
+	tz: string;
+	/** Official expected arrival 'HH:MM' — phase-2 backfill; null/absent at launch. */
+	expectedFinish?: string | null;
+}
+
 export interface EventMeta {
 	slug: string;
 	name: string;
