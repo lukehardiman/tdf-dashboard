@@ -13,10 +13,12 @@ import {
 	buildStageProfile,
 	parseGpxTrack,
 	cumulativeSeries,
+	deriveSprints,
 	type GeoElePoint,
 	type Waypoint
 } from '../src/lib/render/gpx.ts';
 import { finishMapWindowKm } from '../src/lib/render/finish.ts';
+import { simplifyTrack } from '../src/lib/render/route.ts';
 import { tdf2026 } from '../src/lib/data/tdf2026.ts';
 
 // Dense, road-accurate finish track for the zoomed finish map. DIAGNOSIS (stages 12/13, raw vs
@@ -44,6 +46,10 @@ const gpxDir = join(root, 'gpx-src');
 const outDir = join(root, 'src', 'lib', 'data', 'profiles');
 
 const PREVIEW_POINTS = 64;
+// RDP epsilon (m) for the served map track. 8m is below road width, so it can't chord a real bend —
+// corners stay crisp at zoom — while shedding ~93% of the raw ~10m points. Tunable if a denser/leaner
+// track is wanted; the per-stage JSON is lazy-loaded so this isn't on the index's critical path.
+const SIMPLIFY_EPS_M = 8;
 const round = (v: number, dp: number) => {
 	const f = 10 ** dp;
 	return Math.round(v * f) / f;
@@ -84,7 +90,20 @@ for (const stage of tdf2026.stages) {
 	const built = buildStageProfile(gpxText);
 
 	const series: [number, number][] = built.series.map((p: GeoElePoint) => [round(p.km, 2), round(p.ele, 1)]);
-	const track: [number, number][] = built.series.map((p: GeoElePoint) => [round(p.lon, 5), round(p.lat, 5)]);
+	// Map track: the OLD approach reused built.series (320-pt downsample, ~540m spacing) — which chords
+	// across corners at zoom. Instead, simplify the DENSE post-neutral raw points with curvature-aware
+	// RDP (ε=8m, below road width → can't chord a real bend), keeping corners crisp at a fraction of the
+	// raw payload. coordAtFraction/trackUpToFraction are distance-based, so the scrub dot stays in sync
+	// on this non-uniform track. (The elevation `series` keeps its 320-pt downsample — fine for a chart.)
+	const cumGeo = cumulativeSeries(parseGpxTrack(gpxText));
+	const riddenGeo: [number, number][] = (built.neutralKm > 0
+		? cumGeo.filter((p) => p.km >= built.neutralKm - 1e-9)
+		: cumGeo
+	).map((p) => [p.lon, p.lat]);
+	const track: [number, number][] = simplifyTrack(riddenGeo, SIMPLIFY_EPS_M).map(([lon, lat]) => [
+		round(lon, 5),
+		round(lat, 5)
+	]);
 
 	const climbsOut = built.climbs.map((c) => ({
 		name: c.name,
@@ -110,6 +129,19 @@ for (const stage of tdf2026.stages) {
 
 	// Compact feature waypoints (sparse authored points — kept for timetable / where-to-watch).
 	const features: Record<string, { km: number; lat: number; lon: number; name: string; type: string }[]> = {};
+	// Intermediate sprints: collapse circuit re-marks (same point, many laps) by ~50m proximity, so a
+	// Paris-style finishing circuit yields ONE sprint, not 14. Guard: >2 distinct locations after the
+	// collapse is implausible (normally 1, occasionally 2) — suppress + flag rather than render wrong.
+	const sprintClusters = deriveSprints((built.features.sprint ?? []) as Waypoint[]);
+	const sprintGuardTripped = sprintClusters.length > 2;
+	const sprintsOut = sprintGuardTripped
+		? []
+		: sprintClusters.map((s) => ({
+				km: s.km == null ? null : round(s.km, 2),
+				lat: round(s.lat, 5),
+				lon: round(s.lon, 5),
+				viaCircuit: s.viaCircuit
+			}));
 	for (const [kind, ws] of Object.entries(built.features)) {
 		features[kind] = (ws as Waypoint[]).map((w) => ({
 			km: round(w.distKm, 2),
@@ -141,6 +173,8 @@ for (const stage of tdf2026.stages) {
 			ele: Math.round(w.ele),
 			name: w.name
 		})),
+		// Intermediate sprints (circuit re-marks collapsed); [] when none or the guard tripped.
+		sprints: sprintsOut,
 		features
 	};
 
@@ -154,11 +188,17 @@ for (const stage of tdf2026.stages) {
 
 	const dd = Math.round((100 * (file.distanceKm - stage.distanceKm)) / stage.distanceKm);
 	const dg = stage.elevationGainM > 0 ? Math.round((100 * (file.elevationGainM - stage.elevationGainM)) / stage.elevationGainM) : 0;
+	const sprintRaw = (built.features.sprint ?? []).length;
+	const sprintNote = sprintGuardTripped
+		? `  <-- SPRINT GUARD: ${sprintClusters.length} clusters (>2), suppressed`
+		: sprintsOut.some((s) => s.viaCircuit)
+			? `   sprint ●circuit(${sprintRaw}→1)`
+			: `   sprint ${sprintsOut.length}`;
 	const flag = Math.abs(dd) > 3 || Math.abs(dg) > 15 ? '  <-- OUTLIER' : '';
 	rows.push(
 		`  ${String(n).padStart(2)}  dist ${file.distanceKm.toFixed(1).padStart(5)} / ASO ${String(stage.distanceKm).padStart(5)} (${dd >= 0 ? '+' : ''}${dd}%)` +
 			`   gain ${String(file.elevationGainM).padStart(5)} / ASO ${String(stage.elevationGainM).padStart(5)} (${dg >= 0 ? '+' : ''}${dg}%)` +
-			`   neutral ${file.neutralKm.toFixed(1).padStart(5)}   climbs ${file.climbs.length}${flag}`
+			`   neutral ${file.neutralKm.toFixed(1).padStart(5)}   climbs ${file.climbs.length}${sprintNote}${flag}`
 	);
 }
 

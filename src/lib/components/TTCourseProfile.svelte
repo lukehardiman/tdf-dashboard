@@ -14,6 +14,7 @@
 	import { classifyTTSectors, type SectorType } from '$lib/render/ttSectors';
 	import { gradientAtKm, type ElePoint, type ClimbMarkerInput } from '$lib/render/profile';
 	import { detectCorners, type LngLat } from '$lib/render/curvature';
+	import { alignTrack } from '$lib/render/route';
 
 	// Demand-type palette — deliberately NOT the gradient-severity ramp (whose green means
 	// "shallow"). These hues label demand TYPE, not steepness. One source of truth for strip+legend.
@@ -67,10 +68,15 @@
 		return profileBottom - ((ele - eMin) / Math.max(10, eMax - eMin)) * usable * 0.95;
 	});
 
-	const hasTrack = $derived(!!track && track.length === series.length);
-	const sectors = $derived(classifyTTSectors(series, hasTrack ? track : null));
+	// The served map `track` is now an RDP track (dense in corners, NOT index-aligned with the
+	// elevation series). Resample it onto the series' km grid so the sector/corner analysis — which
+	// assumes track[i] ↔ series[i] — gets an aligned track. (The map above still uses the full RDP.)
+	const analysisTrack = $derived(
+		track && track.length >= 2 ? alignTrack(track, series.map((p) => p.km), lastKm) : null
+	);
+	const sectors = $derived(classifyTTSectors(series, analysisTrack));
 	// Sharp bends only — hairpins and tight corners, not every gentle sweep (keeps the layer legible).
-	const corners = $derived(hasTrack ? detectCorners(track!, { minTurnDeg: 110 }) : []);
+	const corners = $derived(analysisTrack ? detectCorners(analysisTrack, { minTurnDeg: 110 }) : []);
 
 	const linePath = $derived('M' + series.map((p) => `${x(p.km).toFixed(2)} ${yProj(p.ele).toFixed(2)}`).join(' L'));
 	const areaPath = $derived(

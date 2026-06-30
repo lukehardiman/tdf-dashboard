@@ -9,6 +9,7 @@ import {
 } from './ttSectors';
 import type { ElePoint } from './profile';
 import type { LngLat } from './curvature';
+import { alignTrack } from './route';
 
 describe('classifySectorType: demand-type rules', () => {
 	it('a real up-gradient is a climb', () => {
@@ -105,10 +106,12 @@ const modules = import.meta.glob<{ default: ProfileJson }>('../data/profiles/sta
 const byStage = new Map<number, ProfileJson>(Object.values(modules).map((m) => [m.default.stage, m.default]));
 const sectorsFor = (n: number) => {
 	const p = byStage.get(n)!;
-	return classifyTTSectors(
-		p.series.map(([km, ele]) => ({ km, ele })),
-		p.track as LngLat[]
-	);
+	const series = p.series.map(([km, ele]) => ({ km, ele }));
+	const lastKm = series[series.length - 1].km;
+	// The served `track` is an RDP track (non-aligned); the app resamples it onto the series km grid
+	// for analysis (see TTCourseProfile). Mirror that here so the regression reflects real usage.
+	const aligned = alignTrack(p.track as LngLat[], series.map((s) => s.km), lastKm);
+	return classifyTTSectors(series, aligned);
 };
 
 describe('classifyTTSectors: real TT stages', () => {
@@ -124,10 +127,14 @@ describe('classifyTTSectors: real TT stages', () => {
 		expect(types.every((t, i) => i === 0 || t !== types[i - 1])).toBe(true);
 		const desc = sectors.filter((s) => s.type === 'descent').sort((a, b) => b.lengthKm - a.lengthKm)[0];
 		expect(desc.avgGradient).toBeLessThan(-3);
-		// the opening climb ends AT its summit (~10.5 km) — the descent off it is the next sector,
-		// never inside the red climb band.
+		// the opening climb ends AT its summit (~10 km) — never carrying the falling road past the top.
 		expect(sectors[0].toKm).toBeLessThan(11.5);
-		expect(sectors[1].type).toBe('descent');
+		// The descent off the top is its OWN sector, starting at/just after the summit (a short flat
+		// shoulder may sit between climb and descent). It must never be buried in the red climb band.
+		const firstDescent = sectors.find((s) => s.type === 'descent');
+		expect(firstDescent).toBeTruthy();
+		expect(firstDescent!.fromKm).toBeGreaterThanOrEqual(sectors[0].toKm);
+		expect(firstDescent!.fromKm).toBeLessThan(12);
 	});
 
 	it('S1 TTT (Barcelona) is dominated by power/technical, not climbing', () => {
