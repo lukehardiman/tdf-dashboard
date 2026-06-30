@@ -4,11 +4,16 @@
 	import TypologyBar from '$lib/components/TypologyBar.svelte';
 	import TypologyKey from '$lib/components/TypologyKey.svelte';
 	import StageSelector from '$lib/components/StageSelector.svelte';
+	import ClockIcon from '$lib/components/ClockIcon.svelte';
 	import { TYPE_LABELS } from '$lib/data/types';
-	import { formatDateLong } from '$lib/state';
+	import { formatDateLong, startLine } from '$lib/state';
 
 	let { data } = $props();
 	const { event, stage, prev, next, series, track, finishTrack } = $derived(data);
+
+	// "When do I tune in": official start (+ optional official finish) grouped with the date.
+	// TT stages read "First rider" and never show a finish (see startLine).
+	const when = $derived(startLine(data.times, stage.type));
 
 	const catLabel = (c: number | 'hc') => (c === 'hc' ? 'HC' : `Cat ${c}`);
 
@@ -105,6 +110,11 @@
 			<div class="head-meta">
 				<span class="type-tag" style="--tag: var(--t-{stage.type})">{TYPE_LABELS[stage.type]}</span>
 				<span class="date mono">{formatDateLong(stage.date)}</span>
+				{#if when}
+					<span class="when mono">
+						<span class="clock-ic" aria-hidden="true"><ClockIcon /></span>{when.lead} <strong>{when.time}</strong> <span class="tz">{when.tz}</span>{#if when.finish} <span class="sep">·</span> Expected finish <strong>{when.finish}</strong>{/if}
+					</span>
+				{/if}
 			</div>
 		</div>
 		<h1>
@@ -123,6 +133,7 @@
 		{track}
 		climbs={data.climbs}
 		climbCount={(data.climbs ?? stage.climbs).length}
+		sprints={data.sprints}
 	/>
 
 	{#if climbs.length}
@@ -241,6 +252,14 @@
 		padding: 3px 9px; border-radius: 999px; width: fit-content;
 	}
 	.date { font-size: 0.82rem; color: var(--text-3); }
+	/* When-to-watch line — grouped with the date as one "when" unit, a touch brighter than the
+	   date since it's the actionable number. Times read as solid figures; tz/sep recede. */
+	.when { font-size: 0.82rem; color: var(--text-2); }
+	.when strong { color: var(--text); font-weight: 700; }
+	.when .tz { color: var(--text-3); }
+	.when .sep { color: var(--text-3); margin: 0 1px; }
+	/* Clock cue — muted like the date, subordinate to the time digits. */
+	.when .clock-ic { color: var(--text-3); margin-right: 5px; }
 
 	h1 {
 		margin: 22px 0 0;

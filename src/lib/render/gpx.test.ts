@@ -12,6 +12,7 @@ import {
 	walkBackExtent,
 	chainBase,
 	extractWaypoints,
+	deriveSprints,
 	WALKBACK_MIN_GRADIENT,
 	WALKBACK_BARRIER_M,
 	CHAIN_MIN_GRADIENT,
@@ -352,5 +353,41 @@ describe('gpx: extractWaypoints assigns the right mode + absorbs chained komna',
 		expect(clean?.mode).toBe('clean');
 		// the chained komna is absorbed, so it must NOT remain uncategorised
 		expect(uncategorised).toHaveLength(0);
+	});
+});
+
+describe('gpx: deriveSprints (coordinate-cluster collapse)', () => {
+	// A 'sprint'-kind waypoint at a given km + position. ~0.00003° ≈ 3 m, ~0.01° ≈ 1.1 km apart.
+	const sp = (distKm: number, lat: number, lon: number): Waypoint => ({
+		lat, lon, ele: 100, name: 'Sprint', distKm, kind: 'sprint', label: '', type: 'Sprint'
+	});
+
+	it('keeps a lone sprint with its km, not flagged as a circuit', () => {
+		const out = deriveSprints([sp(93.31, 42.8803, 2.18963)]);
+		expect(out).toHaveLength(1);
+		expect(out[0].km).toBeCloseTo(93.31, 2);
+		expect(out[0].viaCircuit).toBe(false);
+	});
+
+	it('collapses circuit re-marks (same point, many laps) to ONE sprint, km null', () => {
+		// 14 passes of one Champs point, all within ~5 m (the real stage-21 case).
+		const laps = [57.91, 59.58, 64.71, 66.39, 71.51, 73.19, 78.31, 79.99, 85.1, 95.9, 101.01, 111.8, 116.92, 127.71];
+		const wpts = laps.map((km, i) => sp(km, 48.87108 + (i % 2) * 0.00002, 2.30345 + (i % 2) * 0.00003));
+		const out = deriveSprints(wpts);
+		expect(out).toHaveLength(1);
+		expect(out[0].viaCircuit).toBe(true);
+		expect(out[0].km).toBeNull(); // can't assert which lap is the official scored sprint
+		expect(out[0].lat).toBeCloseTo(48.87108, 4);
+	});
+
+	it('keeps two genuinely distinct sprints (different locations) separate', () => {
+		const out = deriveSprints([sp(50, 43.0, 1.0), sp(120, 44.0, 2.0)]);
+		expect(out).toHaveLength(2);
+		expect(out.every((s) => !s.viaCircuit)).toBe(true);
+		expect(out.map((s) => s.km)).toEqual([50, 120]);
+	});
+
+	it('returns nothing for a stage with no sprint waypoints (TT)', () => {
+		expect(deriveSprints([])).toEqual([]);
 	});
 });

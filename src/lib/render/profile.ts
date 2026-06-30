@@ -221,6 +221,10 @@ export interface ClimbMarker {
 	name: string;
 	/** Whether the name is shown beside the box (suppressed when crowded). */
 	showName: boolean;
+	/** text-anchor for the name so it never clips the frame: flips to end/start when a
+	 *  centred name would overflow the right/left edge (e.g. a summit-finish climb at the
+	 *  far right), middle otherwise. Edge-aware, same principle as the scrub readout. */
+	nameAnchor: 'start' | 'middle' | 'end';
 }
 
 export interface MarkerLayoutOptions {
@@ -258,6 +262,9 @@ export function layoutClimbMarkers(
 	const nameRoom = opts.nameRoom ?? 108;
 	const tierStep = opts.tierStep ?? 15;
 	const maxTiers = opts.maxTiers ?? 3;
+	// Approx average glyph advance (px) for the 9.5px marker-name font — used only to estimate
+	// name width for edge-anchoring, where a slight over/under-estimate just nudges the flip point.
+	const NAME_CHAR_PX = 5.4;
 
 	const maxKm = series[series.length - 1].km;
 	const innerW = width - pad.left - pad.right;
@@ -292,15 +299,27 @@ export function layoutClimbMarkers(
 	return sorted.map((c, i) => {
 		const prevGap = i === 0 ? Infinity : xs[i] - xs[i - 1];
 		const nextGap = i === sorted.length - 1 ? Infinity : xs[i + 1] - xs[i];
+		const boxX = Math.min(width - pad.right - boxHalf, Math.max(pad.left + boxHalf, xs[i]));
+		// Edge-aware name anchor: estimate the name's half-width (no DOM at build time) and flip the
+		// anchor away from whichever frame edge a centred name would overflow. Keeps a far-right climb
+		// name (summit finishes) inside the box instead of clipping.
+		const halfName = (c.name.length * NAME_CHAR_PX) / 2;
+		const nameAnchor: ClimbMarker['nameAnchor'] =
+			boxX + halfName > width - pad.right
+				? 'end'
+				: boxX - halfName < pad.left
+					? 'start'
+					: 'middle';
 		return {
 			x: xs[i],
 			summitY: yOf(elevationAtKm(series, c.summitKm)),
-			boxX: Math.min(width - pad.right - boxHalf, Math.max(pad.left + boxHalf, xs[i])),
+			boxX,
 			boxY: pad.top - 10 - tiers[i] * tierStep,
 			tier: tiers[i],
 			category: c.category === 'hc' ? 'HC' : (String(c.category) as ClimbMarker['category']),
 			name: c.name,
-			showName: Math.min(prevGap, nextGap) >= nameRoom
+			showName: Math.min(prevGap, nextGap) >= nameRoom,
+			nameAnchor
 		};
 	});
 }

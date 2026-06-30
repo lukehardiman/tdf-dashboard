@@ -435,6 +435,52 @@ export function parseWaypoints(xml: string): Waypoint[] {
 	return out;
 }
 
+// ---------------------------------------------------------------------------
+// Intermediate-sprint derivation. The GPX marks the intermediate sprint as a 'sprint'-kind
+// waypoint (cmt field 2 — NOT <type>, which mislabels some end-markers). A normal road stage has
+// exactly one; a TT has none; a finishing-circuit stage (Paris) re-marks the SAME point on every
+// lap, giving many waypoints at one location. We collapse by COORDINATE proximity — the general
+// mechanism (one point, multiple passes) — so any circuit on any future Tour collapses correctly,
+// not a stage-21 special case. Validated: stage-4 sprint km 93.31 ≈ ASO ~93.
+// ---------------------------------------------------------------------------
+
+/** Distance (m) within which sprint waypoints are treated as the SAME point (circuit re-marks). */
+export const SPRINT_CLUSTER_M = 50;
+
+export interface SprintPoint {
+	/** Along-route km from official km-0. null for a circuit-collapsed cluster: the GPX re-marks
+	 *  every lap identically, so it can't say which lap is the official scored sprint — we don't
+	 *  invent one (the marker still sits at the right place via lat/lon). */
+	km: number | null;
+	lat: number;
+	lon: number;
+	/** True when ≥2 waypoints collapsed at one location (finishing-circuit laps). */
+	viaCircuit: boolean;
+}
+
+/**
+ * Cluster 'sprint'-kind waypoints by coordinate proximity (~50 m) and collapse each cluster to one
+ * sprint. A lone waypoint keeps its km; a multi-waypoint cluster is a circuit re-mark → km null,
+ * viaCircuit true. Returns one SprintPoint per distinct location, in input order.
+ */
+export function deriveSprints(sprints: Waypoint[], clusterM = SPRINT_CLUSTER_M): SprintPoint[] {
+	const clusters: Waypoint[][] = [];
+	for (const w of sprints) {
+		const hit = clusters.find(
+			(c) => haversineMeters(c[0].lat, c[0].lon, w.lat, w.lon) <= clusterM
+		);
+		if (hit) hit.push(w);
+		else clusters.push([w]);
+	}
+	return clusters.map((c) => {
+		const viaCircuit = c.length > 1;
+		const lat = c.reduce((s, w) => s + w.lat, 0) / c.length;
+		const lon = c.reduce((s, w) => s + w.lon, 0) / c.length;
+		const km = viaCircuit || Number.isNaN(c[0].distKm) ? null : c[0].distKm;
+		return { km, lat, lon, viaCircuit };
+	});
+}
+
 /** Parse "12.0km @ 6.5%" → { lengthKm, avgGradient }, or nulls if it doesn't match. */
 export function parseClimbLabel(name: string): { lengthKm: number | null; avgGradient: number | null } {
 	const m = name.match(/([\d.]+)\s*km\s*@\s*([\d.]+)\s*%/i);

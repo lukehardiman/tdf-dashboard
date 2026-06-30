@@ -42,6 +42,11 @@
 	const innerW = $derived(width - pad.left - pad.right);
 	const innerH = $derived(height - pad.top - pad.bottom);
 	const baseY = $derived(pad.top + innerH);
+	// Reserved top strip for the climb/summit label. The scrub readout is constrained to render
+	// BELOW this band (see hover/scrub y-floor), so the two get separate territory by design and
+	// can't overprint — for any climb shape or scrub position. innerH ≈ 220px, so a 20px band still
+	// leaves the climb silhouette ~200px to read.
+	const LABEL_BAND = 20;
 
 	const hasRunIn = $derived(toKm > summitKm + 1e-6);
 	const bins = $derived(bandClimb(series, fromKm, toKm, binKm));
@@ -125,8 +130,12 @@
 	// text never overlaps the badge or clips the frame (B sits at the right edge; C is mid-frame).
 	const labelAnchor = $derived(summitX > width * 0.62 ? 'end' : summitX < width * 0.38 ? 'start' : 'middle');
 	const labelX = $derived(Math.max(pad.left, Math.min(width - pad.right, summitX)));
-	// Lift the label clear of the profile line at the summit.
-	const labelY = $derived(Math.max(pad.top + 11, summitY - 12));
+	// The label lives in the reserved top band (fixed y), NOT floating just above the summit point —
+	// that's what kept it clear of the scrub readout. A thin connector ties it back to the summit
+	// when the summit sits well below the band (archetype C); for a summit finish the peak is already
+	// at the top, so the label sits over it and no connector is needed.
+	const labelY = $derived(pad.top + 12);
+	const showConnector = $derived(summitY > pad.top + LABEL_BAND + 8);
 
 	// Scrub-to-read: a standalone readout (distance-to-go / altitude / gradient) for studying the
 	// climb precisely — the banding gives at-a-glance severity, the scrub gives the exact number.
@@ -202,7 +211,11 @@
 		<text x={x(toKm)} y={pad.top - 4} class="finish" text-anchor="end">FINISH</text>
 	{/if}
 
-	<!-- summit marker: a single edge-aware label, category-coloured (no dot — the label suffices) -->
+	<!-- summit marker: a single edge-aware label in the reserved top band, category-coloured. A thin
+	     connector ties it to the summit point when that sits well below the band (archetype C). -->
+	{#if showConnector}
+		<line x1={summitX} y1={pad.top + LABEL_BAND} x2={summitX} y2={summitY} stroke={catColor(category)} stroke-width="1" opacity="0.45" />
+	{/if}
 	<text x={labelX} y={labelY} class="summit-label" text-anchor={labelAnchor} fill={catColor(category)}>
 		{catLabel} · {name}{#if lengthKm}<tspan class="summit-meta"> · {lengthKm}km @ {avgGradient}%</tspan>{/if}
 	</text>
@@ -212,7 +225,9 @@
 		<g class="scrub" style="pointer-events:none">
 			<line x1={hover.x} y1={pad.top} x2={hover.x} y2={baseY} stroke="var(--jaune-text)" stroke-width="1" opacity="0.65" />
 			<circle cx={hover.x} cy={hover.y} r="4" fill="var(--jaune-text)" />
-			<g transform="translate({hover.x},{Math.max(pad.top + 11, hover.y - 12)})">
+			<!-- y-floor = below the reserved label band, so the readout can never rise into the climb
+			     label's strip (structural separation, not collision-detection). -->
+			<g transform="translate({hover.x},{Math.max(pad.top + LABEL_BAND + 4, hover.y - 12)})">
 				<text text-anchor={hover.anchor} class="scrub-label">
 					{hover.kmToGo.toFixed(1)}km · {Math.round(hover.ele)}m{#if Math.abs(hover.grade) >= FLAT_GRADE}
 						· <tspan class="scrub-grade" style="fill: {SEVERITY_COLOR[gradientSeverity(hover.grade)]}"

@@ -3,8 +3,10 @@
 	import type { ElePoint } from '$lib/render/profile';
 	import type { LngLat } from '$lib/render/route';
 	import type { ClimbMarkerInput } from '$lib/render/profile';
+	import type { ProfileSprint } from '$lib/data/profiles';
 	import { classifyStageFinish, type FinishArchetype } from '$lib/render/finish';
 	import { classifyTTSectors } from '$lib/render/ttSectors';
+	import { alignTrack } from '$lib/render/route';
 	import RouteMap from './RouteMap.svelte';
 	import StageProfile from './StageProfile.svelte';
 	import TTCourseProfile from './TTCourseProfile.svelte';
@@ -15,7 +17,8 @@
 		series,
 		track,
 		climbs,
-		climbCount
+		climbCount,
+		sprints = []
 	}: {
 		event: EventMeta;
 		stage: Stage;
@@ -23,6 +26,8 @@
 		track: LngLat[] | null;
 		climbs: ClimbMarkerInput[] | null;
 		climbCount: number;
+		/** Intermediate sprints to mark on the route map (circuit re-marks already collapsed). */
+		sprints?: ProfileSprint[];
 	} = $props();
 
 	// The scrub state lives here now: the profile emits it, the map consumes it — and both
@@ -49,7 +54,10 @@
 	const finishLabel = $derived.by(() => {
 		if (!series || !series.length) return stage.summitFinish ? 'Summit' : 'Flat';
 		if (isTT) {
-			const sectors = classifyTTSectors(series, track && track.length === series.length ? track : null);
+			// Resample the (now RDP, non-aligned) map track onto the series km grid for the analysis.
+			const lastKm = series[series.length - 1].km;
+			const aligned = track && track.length >= 2 ? alignTrack(track, series.map((p) => p.km), lastKm) : null;
+			const sectors = classifyTTSectors(series, aligned);
 			const last = sectors[sectors.length - 1]?.type;
 			return last === 'climb' ? 'Uphill' : last === 'descent' ? 'Downhill' : 'Flat';
 		}
@@ -85,6 +93,7 @@
 		{#if track}
 			<RouteMap
 				{track}
+				{sprints}
 				framed={false}
 				colorVar="--t-{stage.type}"
 				markerFraction={scrubFraction}
@@ -119,6 +128,7 @@
 				{stage}
 				{series}
 				{climbs}
+				{sprints}
 				width={1040}
 				height={210}
 				interactive
