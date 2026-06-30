@@ -9,6 +9,7 @@
 		coordAtFraction,
 		type LngLat
 	} from '$lib/render/route';
+	import type { ProfileSprint } from '$lib/data/profiles';
 
 	let {
 		track,
@@ -16,6 +17,8 @@
 		colorVar = '--jaune',
 		/** 0..1 position along the route to mark (e.g. driven by the profile scrub). */
 		markerFraction = null,
+		/** Intermediate sprints to pin on the route (circuit re-marks already collapsed). */
+		sprints = [],
 		label = 'route',
 		/** Standalone (true) draws its own border/radius; embedded in a unit, pass false. */
 		framed = true
@@ -23,6 +26,7 @@
 		track: LngLat[];
 		colorVar?: string;
 		markerFraction?: number | null;
+		sprints?: ProfileSprint[];
 		label?: string;
 		framed?: boolean;
 	} = $props();
@@ -50,6 +54,7 @@
 	let map: MlMap | null = null;
 	let marker: MlMarker | null = null;
 	let endpoints: MlMarker[] = [];
+	let sprintMarkers: MlMarker[] = [];
 	let raf = 0;
 	let observer: IntersectionObserver | null = null;
 
@@ -170,6 +175,31 @@
 		);
 	}
 
+	// Intermediate sprint = a green pin (the points-classification colour), distinct in shape from the
+	// green START dot (a labelled pill, not a bare dot) and from the chequered FINISH flag. Carries the
+	// km on its label (and hover title); a circuit sprint reads "Sprint" with no km — the GPX can't say
+	// which lap is the official one. Style: global .sprint-pin below. Anchored bottom (tip on the line).
+	function addSprint(s: ProfileSprint) {
+		if (!map || !maplibre) return;
+		const el = document.createElement('div');
+		el.className = 'sprint-pin';
+		el.title = s.viaCircuit
+			? 'Intermediate sprint · finishing circuit'
+			: s.km != null
+				? `Intermediate sprint · km ${s.km}`
+				: 'Intermediate sprint';
+		const chev = document.createElement('span');
+		chev.className = 'sprint-chev';
+		chev.textContent = '»';
+		const lbl = document.createElement('span');
+		lbl.className = 'sprint-label';
+		lbl.textContent = s.viaCircuit || s.km == null ? 'Sprint' : `${Math.round(s.km)} km`;
+		el.append(chev, lbl);
+		sprintMarkers.push(
+			new maplibre.Marker({ element: el, anchor: 'bottom' }).setLngLat([s.lon, s.lat]).addTo(map)
+		);
+	}
+
 	// Render (or re-render) the current track onto a ready map. Runs on first load AND on
 	// client-side nav to another stage (the component instance is reused, only props change).
 	function renderTrack(t: LngLat[]) {
@@ -177,10 +207,13 @@
 		cancelAnimationFrame(raf);
 		for (const m of endpoints) m.remove();
 		endpoints = [];
+		for (const m of sprintMarkers) m.remove();
+		sprintMarkers = [];
 		map.setPaintProperty('route-line', 'line-color', resolveColor());
 		map.fitBounds(trackBounds(t), { padding: 44, animate: false });
 		addEndpoint(t[0], '#1a8f3c', 'Start');
 		addFinishFlag(t[t.length - 1]);
+		for (const s of sprints) addSprint(s);
 		// Expose the rendered route's start coord — lets tests confirm the map tracks nav.
 		if (container) container.dataset.routeStart = `${t[0][0].toFixed(3)},${t[0][1].toFixed(3)}`;
 		const src = map.getSource('route') as GeoJSONSource | undefined;
@@ -191,9 +224,10 @@
 		}
 	}
 
-	// Re-render whenever the track changes (or the map first becomes ready).
+	// Re-render whenever the track (or sprint set) changes, or the map first becomes ready.
 	$effect(() => {
 		const t = track;
+		void sprints; // re-run if the sprint markers change for the current stage
 		if (status !== 'ready') return;
 		renderTrack(t);
 	});
@@ -237,7 +271,9 @@
 		observer?.disconnect();
 		marker?.remove();
 		for (const m of endpoints) m.remove();
+		for (const m of sprintMarkers) m.remove();
 		endpoints = [];
+		sprintMarkers = [];
 		map?.remove();
 		map = null;
 	});
@@ -303,6 +339,43 @@
 		background: var(--jaune);
 		border: 2px solid var(--ink);
 		box-shadow: 0 0 0 3px color-mix(in srgb, var(--jaune) 45%, transparent);
+	}
+	/* Intermediate-sprint pin: a green (points-classification) pill with a chevron + km label, with a
+	   small downward pointer so it reads as marking a POINT on the route. Distinct from the green start
+	   DOT and the chequered finish flag. White text + casing keep it legible on tiles, dark or light. */
+	:global(.sprint-pin) {
+		/* NB: MapLibre owns this element's transform (positioning) — don't set transform here.
+		   anchor:'bottom' puts the pill's bottom on the line; the ::after pointer dips to it. */
+		position: relative;
+		display: flex;
+		align-items: center;
+		gap: 3px;
+		padding: 2px 7px 2px 5px;
+		background: #1f9e4b;
+		color: #fff;
+		font-family: var(--font-mono);
+		font-size: 10px;
+		font-weight: 700;
+		line-height: 1;
+		border-radius: 999px;
+		border: 1.5px solid #fff;
+		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+		white-space: nowrap;
+		cursor: default;
+	}
+	:global(.sprint-pin)::after {
+		content: '';
+		position: absolute;
+		left: 50%;
+		bottom: -7px;
+		margin-left: -4px;
+		border: 4px solid transparent;
+		border-top-color: #1f9e4b;
+	}
+	:global(.sprint-pin .sprint-chev) {
+		font-size: 11px;
+		font-weight: 700;
+		opacity: 0.9;
 	}
 	:global(.maplibregl-ctrl-attrib) {
 		font-size: 10px;

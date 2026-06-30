@@ -35,6 +35,15 @@ export interface ProfileFeature {
 	type: string;
 }
 
+/** A derived intermediate sprint for the route map. Circuit re-marks are collapsed to one point;
+ *  `km` is null for a circuit sprint (the GPX can't say which lap is the official scored one). */
+export interface ProfileSprint {
+	km: number | null;
+	lat: number;
+	lon: number;
+	viaCircuit: boolean;
+}
+
 /** On-disk per-stage profile. Coordinates stored compactly as [km, ele] / [lon, lat]. */
 export interface StageProfileFile {
 	stage: number;
@@ -57,6 +66,8 @@ export interface StageProfileFile {
 	climbs: ProfileClimb[];
 	/** Uncategorised KOM tops — flagged for review, never auto-categorised. */
 	uncategorisedKoms: { km: number; ele: number; name: string }[];
+	/** Intermediate sprints (circuit re-marks collapsed); [] when none or the guard tripped. */
+	sprints?: ProfileSprint[];
 	/** Feature waypoints grouped by kind (held for timetable / where-to-watch). */
 	features: Record<string, ProfileFeature[]>;
 }
@@ -106,6 +117,8 @@ export interface StageRender {
 	climbs: ProfileClimb[];
 	/** Uncategorised KOM tops — count only, flagged for review (never auto-categorised). */
 	uncategorisedKomCount: number;
+	/** Intermediate sprints for the route map (circuit re-marks collapsed). */
+	sprints: ProfileSprint[];
 }
 
 /** Render data (profile series + map track + climbs) for a stage, or null → synthesise fallback. */
@@ -117,7 +130,8 @@ export async function loadStageRender(n: number): Promise<StageRender | null> {
 		track: profile.track,
 		finishTrack: profile.finishTrack ?? [],
 		climbs: profile.climbs,
-		uncategorisedKomCount: profile.uncategorisedKoms.length
+		uncategorisedKomCount: profile.uncategorisedKoms.length,
+		sprints: profile.sprints ?? []
 	};
 }
 
